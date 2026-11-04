@@ -149,3 +149,7 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 ### Background ID in module config: 2026-11-04
 
 - The root `modules.json` contained `chat-background`, which is not a `UiModule`. Before the fix, `ModuleRegistry.fromEnabled` threw on that ID before `CodexAdapter.start()` and background loading ran, so both UI features were absent. The renderer now handles `chat-background` as a reserved feature ID and validates the remaining IDs as modules. Type-check, unit tests, and build passed; live UI behavior was not checked.
+
+### Side chat background: 2026-11-04
+
+- Live inspection showed the native side chat under `data-app-shell-tab-panel-controller="right"` with its chat surface marked `data-includes-composer="true"`. The background and composer fade rules now include that surface on the active Home page. After injection, computed styles showed the image and transparent fade layers in both the main chat and side chat. Other right-panel tabs and visual appearance were not checked.

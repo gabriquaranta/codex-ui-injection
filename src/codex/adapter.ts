@@ -26,12 +26,12 @@ export class CodexAdapter {
     this.#document = document;
     this.#backgroundStyle = document.createElement("style");
     this.#backgroundStyle.textContent = `
-      :root[data-codex-ui-home-chat] [data-app-shell-active-page="true"] [data-app-shell-focus-area="main"][id$="-chat-panel"] {
+      :root[data-codex-ui-home-chat] [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) {
         background-image: linear-gradient(color-mix(in srgb, var(--app-color-background-surface, Canvas) calc(100% - var(--codex-ui-background-opacity)), transparent), color-mix(in srgb, var(--app-color-background-surface, Canvas) calc(100% - var(--codex-ui-background-opacity)), transparent)), var(--codex-ui-background);
         background-position: center; background-size: cover; background-repeat: no-repeat;
       }
-      :root[data-codex-ui-home-chat][data-codex-ui-background] [data-app-shell-active-page="true"] [data-app-shell-focus-area="main"][id$="-chat-panel"] [aria-hidden="true"][class*="_background_"][class*="_fade_"],
-      :root[data-codex-ui-home-chat][data-codex-ui-background] [data-app-shell-active-page="true"] [data-app-shell-focus-area="main"][id$="-chat-panel"] [aria-hidden="true"][class*="_background_"][class*="_surface_"] { background: transparent !important; }
+      :root[data-codex-ui-home-chat][data-codex-ui-background] [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_fade_"],
+      :root[data-codex-ui-home-chat][data-codex-ui-background] [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_surface_"] { background: transparent !important; }
     `;
     this.#controller = new ModuleController(document, registry, () => this.#updateDrawerGeometry());
     const handle = document.createElement("div");
