@@ -29,4 +29,17 @@ describe("ModuleRegistry", () => {
     expect(registry.get("music")).toBe(music);
     expect(registry.get("missing")).toBeUndefined();
   });
+
+  it("registers only the enabled modules in config order", () => {
+    const git = moduleWithId("git");
+    const music = moduleWithId("music");
+    const registry = ModuleRegistry.fromEnabled([git, music], ["music"]);
+
+    expect(registry.all()).toEqual([music]);
+  });
+
+  it("rejects an unknown enabled module ID", () => {
+    expect(() => ModuleRegistry.fromEnabled([moduleWithId("git")], ["missing"]))
+      .toThrow("Unknown enabled UI module: missing");
+  });
 });

@@ -15,6 +15,16 @@ export class ModuleRegistry {
     this.#byId = byId;
   }
 
+  static fromEnabled(modules: readonly UiModule[], enabledIds: readonly string[]): ModuleRegistry {
+    const available = new ModuleRegistry(modules);
+    const enabled = enabledIds.map((id) => {
+      const module = available.get(id);
+      if (!module) throw new Error(`Unknown enabled UI module: ${id}`);
+      return module;
+    });
+    return new ModuleRegistry(enabled);
+  }
+
   all(): readonly UiModule[] {
     return this.#modules;
   }

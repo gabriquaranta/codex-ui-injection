@@ -31,7 +31,7 @@ If there is exactly one main `app://` renderer, injection can select it automati
 
 ## Add a module
 
-Implement `UiModule` in `src/modules/<module-name>/index.ts`, then add it to the static registry in `src/entrypoints/renderer.ts`. A module provides an ID, toolbar label and icon, drawer title, a `mount(ShadowRoot)` function with optional cleanup, and optional CSS. The shadow root keeps module CSS local while inheriting Codex fonts and CSS variables.
+Implement `UiModule` in `src/modules/<module-name>/index.ts`, then add its import to the available module list in `src/entrypoints/renderer.ts` and its ID to the root `modules.json` to enable it. Remove the ID to disable its toolbar action. Add or remove `chat-background` in that file to enable or disable the saved chat background. Module imports stay static, so disabled module code remains in the bundle. Rebuild and inject after changing the file. A module provides an ID, toolbar label and icon, drawer title, a `mount(ShadowRoot)` function with optional cleanup, and optional CSS. The shadow root keeps module CSS local while inheriting Codex fonts and CSS variables.
 
 Core supports named toolbar and right-drawer slots. Do not make modules depend on Codex selectors. Add new slots through the Codex adapter after inspecting and documenting the renderer hook.
 

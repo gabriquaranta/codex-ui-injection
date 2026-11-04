@@ -141,3 +141,11 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 
 - A script identifier registered through one CDP connection could not be removed through a second connection (`Script not found`). New renderer startup bundles therefore read the selected image from a dedicated IndexedDB store; the injector updates or deletes that image before installing the runtime. Live inspection confirmed the 20 MB GIF in the store and a blob background on the chat. The renderer bundle measured 24 KB. Scripts registered by earlier runtime versions can remain until the app restarts; reload behavior was not checked.
 - The chat background marker now follows the active chat independently of toolbar availability. The observer also schedules a mount when dialogs are inserted, removed, or changed inside the chat. These paths were reviewed in code; an actual in-chat modal and a missing toolbar slot were not exercised live.
+
+### Enabled modules: 2026-11-04
+
+- Root `modules.json` supplies enabled IDs for the bundled renderer. The renderer still imports available modules statically; `ModuleRegistry.fromEnabled` filters the toolbar and drawer registry and throws for an unknown module ID. The reserved `chat-background` ID controls the separately implemented saved background feature. It must be removed from the list before module IDs are validated. This avoids a runtime filesystem loader and a YAML dependency. Editing the file requires rebuilding and reinjecting, and disabled module code remains bundled. Type-check, unit tests, and build passed; live UI behavior was not checked.
+
+### Background ID in module config: 2026-11-04
+
+- The root `modules.json` contained `chat-background`, which is not a `UiModule`. Before the fix, `ModuleRegistry.fromEnabled` threw on that ID before `CodexAdapter.start()` and background loading ran, so both UI features were absent. The renderer now handles `chat-background` as a reserved feature ID and validates the remaining IDs as modules. Type-check, unit tests, and build passed; live UI behavior was not checked.

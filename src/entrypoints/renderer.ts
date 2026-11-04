@@ -1,6 +1,7 @@
 import { CodexAdapter } from "../codex/adapter.js";
 import { ModuleRegistry } from "../core/module-registry.js";
 import { emptyPanelModule } from "../modules/empty-panel/index.js";
+import enabledModuleIds from "../../modules.json" with { type: "json" };
 import { BUILD_VERSION } from "../shared/version.js";
 
 function loadBackground(): Promise<Blob | null> {
@@ -33,13 +34,17 @@ function startRenderer(): void {
   legacyStyle.textContent = "#codex-side-poc-button, #codex-side-poc-panel { display: none !important; flex: 0 0 0 !important; width: 0 !important; }";
   document.head.append(legacyStyle);
 
-  const modules = new ModuleRegistry([emptyPanelModule]);
+  const backgroundEnabled = enabledModuleIds.includes("chat-background");
+  const moduleIds = enabledModuleIds.filter((id) => id !== "chat-background");
+  const modules = ModuleRegistry.fromEnabled([emptyPanelModule], moduleIds);
   const adapter = new CodexAdapter(document, modules);
   adapter.start();
   let disposed = false;
-  void loadBackground().then((image) => {
-    if (!disposed) adapter.setChatBackground(image, 30);
-  }).catch((error: unknown) => console.error("Could not load chat background:", error));
+  if (backgroundEnabled) {
+    void loadBackground().then((image) => {
+      if (!disposed) adapter.setChatBackground(image, 30);
+    }).catch((error: unknown) => console.error("Could not load chat background:", error));
+  }
   window.__codexUiRuntime = {
     version: BUILD_VERSION,
     dispose() {
