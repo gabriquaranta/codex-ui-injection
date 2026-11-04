@@ -2,6 +2,8 @@
 
 A local TypeScript toolkit for adding small, UI-only modules to the Codex desktop renderer. V1 provides a toolbar action and one shared right drawer. The first registered module is an empty-panel example.
 
+To add a chat background, place one file named `chat-background.png`, `chat-background.jpg`, `chat-background.jpeg`, `chat-background.webp`, or `chat-background.gif` in the repository root, then run `npm run inject`. Remove the file and inject again to clear the background. The image is stored locally in the app and displayed at 30% opacity.
+
 The core manages renderer discovery, module lifecycle, and layout. Modules do not call Codex tools, submit messages, or change conversation data. Each module owns any future data source it needs.
 
 ## Run locally

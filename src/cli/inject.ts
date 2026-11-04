@@ -5,6 +5,7 @@ import { isMainCodexTarget, type CodexTarget } from "../codex/target.js";
 
 interface RuntimeEvaluation<T> {
   readonly result: { readonly value: T };
+  readonly exceptionDetails?: { readonly text: string };
 }
 
 const args = process.argv.slice(2);
@@ -56,6 +57,38 @@ async function main(): Promise<void> {
   try {
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
+    const stored = await cdp.send<RuntimeEvaluation<boolean>>("Runtime.evaluate", {
+      expression: `(async () => {
+        const data = ${JSON.stringify(__CHAT_BACKGROUND__)};
+        let image = null;
+        if (data !== null) {
+          const binary = atob(data.slice(data.indexOf(",") + 1));
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+          image = new Blob([bytes], { type: data.slice(5, data.indexOf(";")) });
+        }
+        const database = await new Promise((resolve, reject) => {
+          const request = indexedDB.open("codex-ui-background", 1);
+          request.onupgradeneeded = () => request.result.createObjectStore("images");
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        await new Promise((resolve, reject) => {
+          const transaction = database.transaction("images", "readwrite");
+          if (image) transaction.objectStore("images").put(image, "chat");
+          else transaction.objectStore("images").delete("chat");
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
+          transaction.onabort = () => reject(transaction.error);
+        }).finally(() => database.close());
+        return true;
+      })()`,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (stored.exceptionDetails || stored.result.value !== true) {
+      throw new Error(`Could not store chat background: ${stored.exceptionDetails?.text ?? "unknown error"}`);
+    }
     const installed = await cdp.send<RuntimeEvaluation<string | undefined>>("Runtime.evaluate", {
       expression: "window.__codexUiRuntime?.version",
       returnByValue: true,

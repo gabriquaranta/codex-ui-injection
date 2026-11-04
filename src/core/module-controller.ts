@@ -47,10 +47,10 @@ export class ModuleController {
     this.#styleElement = document.createElement("style");
     this.#styleElement.dataset.codexUiStyles = "";
     this.#styleElement.textContent = `
-      :root:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-thread-edge-divider] { max-width: 100%; }
-      :root:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-main-titlebar] { --app-shell-page-inline-end-inset: var(--codex-ui-drawer-width); }
-      :root:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-main-surface="default"] { clip-path: none; border-start-end-radius: 0; border-end-end-radius: 0; }
-      :root:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-titlebar-slot="content"][data-app-shell-focus-area="right-panel"] { translate: calc(-1 * var(--codex-ui-drawer-width)) 0; }
+      :root[data-codex-ui-home-chat]:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-active-page="true"] [data-app-shell-thread-edge-divider] { max-width: 100%; }
+      :root[data-codex-ui-home-chat]:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-main-titlebar] { --app-shell-page-inline-end-inset: var(--codex-ui-drawer-width); }
+      :root[data-codex-ui-home-chat]:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-active-page="true"] [data-app-shell-main-surface="default"] { clip-path: none; border-start-end-radius: 0; border-end-end-radius: 0; }
+      :root[data-codex-ui-home-chat]:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-titlebar-slot="content"][data-app-shell-focus-area="right-panel"] { translate: calc(-1 * var(--codex-ui-drawer-width)) 0; }
       [data-codex-ui-toolbar] { display: contents; }
       [data-codex-ui-action] { width: 28px; height: 28px; flex: 0 0 28px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
       [data-codex-ui-action]:hover, [data-codex-ui-action][aria-pressed="true"] { background: var(--color-background-primary-surface, rgba(127,127,127,.12)); }

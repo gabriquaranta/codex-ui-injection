@@ -116,3 +116,28 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 ### Drawer ordering during navigation: 2026-11-04
 
 - The workspace row can receive new `data-app-shell-active-page` children after the injected drawer. When a later child becomes active, flex ordering can place the drawer to its left. The adapter now keeps the drawer as the last row child. A fixture and a live DOM insertion check confirmed the drawer returns to the end and remains at the main view right edge; a live tab switch was not exercised.
+
+### Chat background: 2026-11-04
+
+- Live DOM inspection found chat surfaces marked by `data-app-shell-focus-area="main"` and IDs ending in `-chat-panel`; their large descendants had transparent backgrounds in the inspected view. The adapter applies the background to those surfaces on Home. The build embeds an optional image from the repository root and includes its hash in the runtime version, so a changed image replaces the startup script. Image display and GIF animation remain unverified in the app.
+
+- A 4 MB JPEG produced a data URL that the renderer did not retain as a CSS variable. Converting the embedded bytes to a blob URL gave the CSS a short value; live inspection confirmed the 3840 by 2160 image decoded and the chat's computed background contained that URL. The previous surface color was transparent, so the overlay now uses `--app-color-background-surface`. Visual appearance and GIF animation remain unverified.
+
+- Live inspection found a decorative gradient and solid surface behind the composer, both marked `aria-hidden` and using generated `_background_` classes. With a custom background on Home, the adapter makes those layers transparent. Their computed styles were transparent after injection; visual appearance remains unverified.
+
+### Toolbar observer loop: 2026-11-04
+
+- With two injected actions and the native tab strip open, the `New tab` button can move between the rightmost and an earlier position as the toolbar is moved. A capped live observer showed the injected toolbar alternating between two parents and triggering itself repeatedly. The toolbar lookup now excludes `New tab` from its candidates. With one injected action, a capped live observation saw one callback and no loop; the two-action case remains unverified.
+
+### Home chat lifecycle: 2026-11-04
+
+- Live inspection showed that the active chat main and its toolbar share a `data-app-shell-active-page="true"` ancestor inside `data-app-shell-workspace-row="true"`. The adapter now requires these hooks, a visible chat and toolbar, and no visible modal before mounting; its chat and drawer styles are gated by that state. Mutation updates are coalesced into animation frames, and changes inside the chat content do not trigger layout lookup. A fixture covers modal removal and return; live inspection confirmed the toolbar, drawer and background mounted on the active chat. A real Settings-to-chat transition and its reported freeze remain unverified.
+
+### Toolbar action placement: 2026-11-04
+
+- Live inspection showed the rightmost native tab control inside `data-app-shell-header-slot="end"` and `data-app-shell-header-slot-content="true"`. The adapter now appends injected actions to that end slot and restores their position if native buttons are inserted after them. Live inspection placed the injected button after `New tab`, with no native toolbar button to its right. Opening and closing the native panel was not exercised.
+
+### Background storage and chat guards: 2026-11-04
+
+- A script identifier registered through one CDP connection could not be removed through a second connection (`Script not found`). New renderer startup bundles therefore read the selected image from a dedicated IndexedDB store; the injector updates or deletes that image before installing the runtime. Live inspection confirmed the 20 MB GIF in the store and a blob background on the chat. The renderer bundle measured 24 KB. Scripts registered by earlier runtime versions can remain until the app restarts; reload behavior was not checked.
+- The chat background marker now follows the active chat independently of toolbar availability. The observer also schedules a mount when dialogs are inserted, removed, or changed inside the chat. These paths were reviewed in code; an actual in-chat modal and a missing toolbar slot were not exercised live.

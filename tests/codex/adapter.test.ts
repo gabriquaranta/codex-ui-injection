@@ -17,6 +17,7 @@ describe("CodexAdapter", () => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 1000 });
     document.querySelector(".layout")!.getBoundingClientRect = () => rect(0, 0, 1600, 1000);
     document.querySelector("main")!.getBoundingClientRect = () => rect(220, 44, 1380, 956);
+    document.querySelector(".last-toolbar-group")!.getBoundingClientRect = () => rect(1502, 8, 28, 28);
     document.querySelector<HTMLButtonElement>('[aria-label="Chat actions"]')!.getBoundingClientRect = () => rect(1400, 8, 28, 28);
     document.querySelector<HTMLButtonElement>('[aria-label="View chat usage"]')!.getBoundingClientRect = () => rect(1434, 8, 28, 28);
     document.querySelector<HTMLButtonElement>('[aria-label="Toggle pinned summary"]')!.getBoundingClientRect = () => rect(1468, 8, 28, 28);
@@ -33,7 +34,6 @@ describe("CodexAdapter", () => {
     const drawer = document.querySelector("[data-codex-ui-drawer]")!;
     expect(action.parentElement).toBe(toolbarRoot);
     expect(toolbarRoot.parentElement).toBe(document.querySelector(".last-toolbar-group"));
-    expect(toolbarRoot.previousElementSibling).toBe(document.querySelector('[aria-label="Show tabs"]'));
     expect(toolbarRoot.parentElement?.lastElementChild).toBe(toolbarRoot);
     expect(drawer.parentElement).toBe(document.querySelector(".layout"));
 
@@ -49,13 +49,34 @@ describe("CodexAdapter", () => {
     document.querySelector<HTMLButtonElement>('[data-codex-ui-action]')!.click();
     const home = document.querySelector('[data-sidebar-destination="builtin:home"]')!;
     home.removeAttribute("aria-current");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 30));
     expect(document.querySelector("[data-codex-ui-drawer]")).toBeNull();
     expect(document.querySelector("[data-codex-ui-toolbar]")).toBeNull();
     home.setAttribute("aria-current", "page");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 30));
     expect(document.querySelector("[data-codex-ui-drawer]")?.getAttribute("data-open")).toBe("false");
     expect(document.querySelector("[data-codex-ui-toolbar]")).not.toBeNull();
+    adapter.dispose();
+  });
+
+  it("detaches chat UI while a modal is open and restores it on close", async () => {
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    adapter.start();
+    document.querySelector<HTMLButtonElement>('[data-codex-ui-action]')!.click();
+    const modal = document.createElement("div");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.getBoundingClientRect = () => rect(300, 100, 600, 600);
+    document.body.append(modal);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(document.querySelector("[data-codex-ui-toolbar]")).toBeNull();
+    expect(document.querySelector("[data-codex-ui-drawer]")).toBeNull();
+    expect(document.documentElement.hasAttribute("data-codex-ui-home-chat")).toBe(false);
+    expect(document.querySelector<HTMLElement>("main")!.style.minWidth).toBe("");
+    modal.remove();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(document.querySelector('[data-codex-ui-drawer]')?.getAttribute("data-open")).toBe("false");
+    expect(document.documentElement.hasAttribute("data-codex-ui-home-chat")).toBe(true);
     adapter.dispose();
   });
 
@@ -65,8 +86,12 @@ describe("CodexAdapter", () => {
     const layout = document.querySelector(".layout")!;
     const drawer = document.querySelector("[data-codex-ui-drawer]")!;
     const page = document.createElement("div");
+    document.querySelector('[data-app-shell-active-page="true"]')!.setAttribute("data-app-shell-active-page", "false");
+    page.setAttribute("data-app-shell-active-page", "true");
+    page.append(document.querySelector("header")!);
+    page.append(document.querySelector("main")!);
     layout.append(page);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 30));
     expect(layout.lastElementChild).toBe(drawer);
     expect(drawer.previousElementSibling).toBe(page);
     adapter.dispose();
@@ -97,7 +122,7 @@ describe("CodexAdapter", () => {
     adapter.dispose();
   });
 
-  it("moves the toolbar action outside a tab control when it expands", () => {
+  it("keeps the toolbar action at the end when a tab control expands", async () => {
     const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
     adapter.start();
 
@@ -105,8 +130,9 @@ describe("CodexAdapter", () => {
     expect(toolbarRoot.parentElement).toBe(document.querySelector(".last-toolbar-group"));
     document.querySelector<HTMLButtonElement>('[aria-label="Show tabs"]')!.getBoundingClientRect = () => rect(1502, 8, 320, 28);
     window.dispatchEvent(new Event("resize"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
 
-    expect(toolbarRoot.parentElement).toBe(document.querySelector(".toolbar-actions"));
+    expect(toolbarRoot.parentElement).toBe(document.querySelector(".last-toolbar-group"));
     expect(toolbarRoot.parentElement?.lastElementChild).toBe(toolbarRoot);
     adapter.dispose();
   });
