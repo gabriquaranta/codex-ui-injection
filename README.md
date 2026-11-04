@@ -1,6 +1,6 @@
 # Codex UI Building Blocks
 
-A local TypeScript toolkit for adding small, UI-only modules to the Codex desktop renderer. V1 provides a toolbar action and one shared right drawer. The first registered module is an empty-panel example.
+A local TypeScript toolkit for adding small, UI-only modules to the Codex desktop renderer. It provides toolbar actions, a shared right drawer, and vertically stacked popovers. Empty panel and popover modules provide examples.
 
 To add a chat background, place one file named `chat-background.png`, `chat-background.jpg`, `chat-background.jpeg`, `chat-background.webp`, or `chat-background.gif` in `src/modules/chat-background/`, then run `npm run inject`. Remove the file and inject again to clear the background. The image is stored locally in the app and displayed at 30% opacity.
 
@@ -31,11 +31,11 @@ If there is exactly one main `app://` renderer, injection can select it automati
 
 ## Add a module
 
-Implement `UiModule` in `src/modules/<module-name>/index.ts`, then add it to the available module list in `src/entrypoints/renderer.ts` and add its ID to root `modules.json`. Each enabled module activates with a context and can return a cleanup function. A module can register a `UiPanel` or use the chat background slot; see the existing modules for examples. A panel provides its toolbar label and icon, drawer title, `mount(ShadowRoot)`, and optional CSS. The shadow root keeps module CSS local while inheriting Codex fonts and CSS variables.
+Implement `UiModule` in `src/modules/<module-name>/index.ts`, then add it to the available module list in `src/entrypoints/renderer.ts` and add its ID to root `modules.json`. Each enabled module activates with a context and can return a cleanup function. A module can register a `UiPanel` or `UiPopover`, or use the chat background slot; see the existing modules for examples. Panels and popovers provide a toolbar label and icon, `mount(ShadowRoot)`, and optional CSS. A panel also provides a drawer title. Shadow roots keep module CSS local while inheriting Codex fonts and CSS variables.
 
 Remove an ID from `modules.json` to disable that module. Rebuild and inject after editing the file. Imports stay static, so disabled module code remains in the bundle.
 
-Core supports named toolbar and right-drawer slots. Do not make modules depend on Codex selectors. Add new slots through the Codex adapter after inspecting and documenting the renderer hook.
+Core supports named toolbar, right-drawer, and popover slots. Popover actions sit beside the native summary action. Open popovers stack below the native summary at its width; closing the summary closes the injected popovers. Their toolbar buttons toggle them, and Escape closes the last opened popover. Do not make modules depend on Codex selectors. Add new slots through the Codex adapter after inspecting and documenting the renderer hook.
 
 ## Structure
 

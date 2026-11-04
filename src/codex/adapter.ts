@@ -1,4 +1,4 @@
-import type { UiPanel } from "../core/contracts.js";
+import type { UiPanel, UiPopover } from "../core/contracts.js";
 import type { ModuleRegistry } from "../core/module-registry.js";
 import { ModuleController } from "../core/module-controller.js";
 
@@ -6,6 +6,7 @@ const LEGACY_IDS = ["codex-side-poc-button", "codex-side-poc-panel", "codex-side
 const DEFAULT_DRAWER_WIDTH = 360;
 const MIN_DRAWER_WIDTH = 220;
 const MIN_MAIN_WIDTH = 680;
+const POPOVER_SHADOW_SPACE = 32;
 
 export class CodexAdapter {
   readonly #document: Document;
@@ -22,8 +23,9 @@ export class CodexAdapter {
   #backgroundUrl: string | null = null;
   #mountFrame: number | null = null;
   #disposed = false;
+  #summaryVisible = false;
 
-  constructor(document: Document, registry: ModuleRegistry<UiPanel>) {
+  constructor(document: Document, registry: ModuleRegistry<UiPanel>, popovers: readonly UiPopover[] = []) {
     this.#document = document;
     this.#backgroundStyle = document.createElement("style");
     this.#backgroundStyle.textContent = `
@@ -34,7 +36,7 @@ export class CodexAdapter {
       :root[data-codex-ui-home-chat][data-codex-ui-background] [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_fade_"],
       :root[data-codex-ui-home-chat][data-codex-ui-background] [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_surface_"] { background: transparent !important; }
     `;
-    this.#controller = new ModuleController(document, registry, () => this.#updateDrawerGeometry());
+    this.#controller = new ModuleController(document, registry, () => this.#updateDrawerGeometry(), popovers);
     const handle = document.createElement("div");
     handle.dataset.codexUiResize = "";
     handle.setAttribute("role", "separator");
@@ -87,7 +89,7 @@ export class CodexAdapter {
   start(): void {
     this.#document.head.append(this.#backgroundStyle);
     this.#mount();
-    this.#observer.observe(this.#document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-current", "aria-modal", "aria-hidden", "role", "inert", "data-app-shell-active-page"] });
+    this.#observer.observe(this.#document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-current", "aria-modal", "aria-hidden", "aria-pressed", "role", "inert", "data-app-shell-active-page"] });
     this.#document.defaultView?.addEventListener("resize", this.#resizeHandler);
   }
 
@@ -141,7 +143,17 @@ export class CodexAdapter {
     const home = this.#document.querySelector('[data-sidebar-destination="builtin:home"][aria-current="page"]');
     const modal = [...this.#document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]')]
       .some((element) => element.getBoundingClientRect().width > 0);
-    const layout = home && !modal ? this.#findLayout() : null;
+    this.#controller.setPopoversSuspended(modal);
+    if (modal) {
+      this.#controller.close();
+      this.#controller.popoverToolbarRoot.remove();
+      this.#controller.toolbarRoot.remove();
+      this.#controller.drawer.remove();
+      this.#restoreMainMinWidth();
+      delete this.#document.documentElement.dataset.codexUiHomeChat;
+      return;
+    }
+    const layout = home ? this.#findLayout() : null;
     if (layout) this.#document.documentElement.dataset.codexUiHomeChat = "";
     else delete this.#document.documentElement.dataset.codexUiHomeChat;
     const activePage = layout?.main.closest('[data-app-shell-active-page="true"]');
@@ -150,6 +162,10 @@ export class CodexAdapter {
     const toolbarSlot = anchor && this.#findToolbarSlot(anchor);
     if (!anchor || !toolbarSlot || !layout) {
       this.#controller.close();
+      this.#controller.closePopovers();
+      this.#summaryVisible = false;
+      this.#controller.popoverStack.remove();
+      this.#controller.popoverToolbarRoot.remove();
       this.#controller.toolbarRoot.remove();
       this.#controller.drawer.remove();
       this.#restoreMainMinWidth();
@@ -161,6 +177,16 @@ export class CodexAdapter {
       return;
     }
     this.#controller.setToolbarClass(anchor.className);
+    const summaryButton = activePage?.querySelector<HTMLButtonElement>('button[data-thread-summary-panel-toggle="true"]');
+    if (summaryButton?.parentElement) {
+      if (this.#controller.popoverToolbarRoot.parentElement !== summaryButton.parentElement
+        || this.#controller.popoverToolbarRoot.nextSibling !== summaryButton) {
+        summaryButton.parentElement.insertBefore(this.#controller.popoverToolbarRoot, summaryButton);
+      }
+    } else {
+      this.#controller.closePopovers();
+      this.#controller.popoverToolbarRoot.remove();
+    }
     if (this.#controller.toolbarRoot.parentElement !== toolbarSlot
       || [...toolbarSlot.children].some((child) => child !== this.#controller.toolbarRoot
         && Boolean(this.#controller.toolbarRoot.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING)
@@ -172,7 +198,21 @@ export class CodexAdapter {
         && Boolean(this.#controller.drawer.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING))) {
       layout.element.append(this.#controller.drawer);
     }
-    this.#observeTargets([toolbarSlot, layout.element, layout.main]);
+    if (!this.#controller.popoverStack.isConnected) this.#document.body.append(this.#controller.popoverStack);
+    const mainRect = layout.main.getBoundingClientRect();
+    const stack = this.#controller.popoverStack;
+    const summary = activePage?.querySelector<HTMLElement>('[data-summary-panel-variant="summary"]');
+    const summaryRect = summary?.getBoundingClientRect();
+    const visibleSummary = summaryButton?.getAttribute("aria-pressed") === "true"
+      && summaryRect && summaryRect.width > 0 && summaryRect.height > 0
+      && summaryRect.left < mainRect.right && summaryRect.right > mainRect.left ? summaryRect : null;
+    if (this.#summaryVisible && !visibleSummary) this.#controller.closePopovers();
+    this.#summaryVisible = Boolean(visibleSummary);
+    stack.style.top = `${(visibleSummary ? visibleSummary.bottom + 8 : mainRect.top + 8) - POPOVER_SHADOW_SPACE}px`;
+    stack.style.width = `${Math.max(0, Math.min(visibleSummary?.width ?? 300, mainRect.width - 16))}px`;
+    stack.style.right = `${(this.#document.defaultView?.innerWidth ?? mainRect.right) - (visibleSummary?.right ?? mainRect.right - 8) - POPOVER_SHADOW_SPACE}px`;
+    stack.style.bottom = `${Math.max(16, (this.#document.defaultView?.innerHeight ?? mainRect.bottom) - mainRect.bottom + 16) - POPOVER_SHADOW_SPACE}px`;
+    this.#observeTargets([toolbarSlot, layout.element, layout.main, ...(visibleSummary && summary ? [summary] : [])]);
     this.#updateDrawerGeometry();
   }
 

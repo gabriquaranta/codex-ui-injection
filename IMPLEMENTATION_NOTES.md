@@ -161,3 +161,25 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 ### Background file location: 2026-11-04
 
 - The build now looks for the background image in `src/modules/chat-background/`. The existing GIF was moved there. The build passed, and the injector bundle was checked against the moved GIF. Live injection was not checked.
+
+### Popover slot: 2026-11-04
+
+- The adapter positions a fixed popover stack inside the active main surface bounds, below its top edge. Modules register popovers through the core context; the controller owns their toolbar actions, shadow roots, vertical ordering, Escape handling, and cleanup. The stack scrolls when its contents exceed the available height. This uses the existing active chat and toolbar hooks; no module targets Codex selectors.
+- Live injection of version 0.1.30 showed the empty popover at 360 by 74 px with a white surface and 12 px corners. Its toolbar action opened and closed it, and the rendered card was visually inspected. A controller test covers two open popovers and independent cleanup; multiple popovers and scrolling were not checked live.
+
+### Native summary alignment: 2026-11-04
+
+- Live renderer inspection found the summary button at `data-thread-summary-panel-toggle="true"` and its card at `data-summary-panel-variant="summary"` within the active page. The closed card can remain in the DOM off screen, so the adapter checks the button's `aria-pressed` state and the card bounds. Popover actions mount immediately before the summary button; open injected cards use the native card width and align 8 px below it. Closing the native summary closes injected popovers. Resize and mutation observers update the geometry.
+- With version 0.1.32, live CDP measurements showed both cards at 300 px wide with matching edges and an 8 px vertical gap. A 1250 px viewport simulation preserved that alignment; closing the summary closed the injected card. The combined cards were visually inspected. A fixture covers button placement, resizing, and summary closure; multiple injected cards were not checked live.
+
+### Popover shadow: 2026-11-04
+
+- The popover's shadow was clipped at the scroll container edges, creating rectangular shading. The container now has 20 px of padding for the shadow, with its position adjusted to preserve card alignment. In version 0.1.33, live inspection showed the card still matched the native summary width and sat 8 px below it; the shadow was visually checked. Automated tests and the build passed.
+
+### Matching native summary styling: 2026-11-04
+
+- Live computed styles showed the native summary used 20 px corners, no solid border, and a three-layer elevation shadow. The injected card used 12 px corners, a 1 px border, and a different shadow. The core now applies the native summary's observed surface, corner, and elevation classes to popover cards, with 32 px of scroll-container padding for the larger shadow. In version 0.1.34, live computed background, border, radius, and shadow matched the native card; alignment and appearance were also checked. Type-check, tests, and build passed. Dark mode and other platforms remain unverified; the app's classes are private and may change.
+
+### Popovers during image preview: 2026-11-04
+
+- Live inspection found the image viewer uses a visible `role="dialog"` with `aria-modal="true"` and z-index 50. The adapter previously closed popovers when that dialog appeared. It now keeps them mounted, makes their stack inert behind the modal, and suspends their Escape handler until the dialog closes. Live checks with version 0.1.36 confirmed the same popover stayed mounted behind the image viewer and remained open after its close button was used. A fixture covers Escape during a modal and cleanup after return; the viewer's own Escape behavior was not confirmed live.

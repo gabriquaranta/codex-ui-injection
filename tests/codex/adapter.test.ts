@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CodexAdapter } from "../../src/codex/adapter.js";
 import { ModuleRegistry } from "../../src/core/module-registry.js";
 import { emptyPanel } from "../../src/modules/empty-panel/index.js";
@@ -43,6 +43,41 @@ describe("CodexAdapter", () => {
     adapter.dispose();
   });
 
+  it("places popovers beside the summary action and below the native summary", async () => {
+    const popover = {
+      id: "popover",
+      toolbarLabel: "Popover",
+      createIcon: (document: Document) => document.createElementNS("http://www.w3.org/2000/svg", "svg"),
+      mount: () => {},
+    };
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]), [popover]);
+    adapter.start();
+    const summaryButton = document.querySelector<HTMLButtonElement>('[data-thread-summary-panel-toggle]')!;
+    const action = document.querySelector<HTMLButtonElement>('[data-codex-ui-action="popover"]')!;
+    expect(action.parentElement?.nextElementSibling).toBe(summaryButton);
+    const summary = document.createElement("div");
+    summaryButton.setAttribute("aria-pressed", "true");
+    summary.dataset.summaryPanelVariant = "summary";
+    summary.getBoundingClientRect = () => rect(1280, 52, 300, 316);
+    document.querySelector('[data-app-shell-active-page="true"]')!.append(summary);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    action.click();
+    const stack = document.querySelector<HTMLElement>("[data-codex-ui-popovers]")!;
+    expect(stack.style.top).toBe("344px");
+    expect(stack.style.right).toBe("-12px");
+    expect(stack.style.width).toBe("300px");
+    summary.getBoundingClientRect = () => rect(980, 52, 240, 200);
+    window.dispatchEvent(new Event("resize"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(stack.style.top).toBe("228px");
+    expect(stack.style.width).toBe("240px");
+    summaryButton.setAttribute("aria-pressed", "false");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(stack.children).toHaveLength(0);
+    expect(action.getAttribute("aria-expanded")).toBe("false");
+    adapter.dispose();
+  });
+
   it("removes the panel outside home and restores the action on return", async () => {
     const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
@@ -77,6 +112,42 @@ describe("CodexAdapter", () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(document.querySelector('[data-codex-ui-drawer]')?.getAttribute("data-open")).toBe("false");
     expect(document.documentElement.hasAttribute("data-codex-ui-home-chat")).toBe(true);
+    adapter.dispose();
+  });
+
+  it("keeps an open popover mounted while a modal is open", async () => {
+    const cleanup = vi.fn();
+    const popover = {
+      id: "popover",
+      toolbarLabel: "Popover",
+      createIcon: (document: Document) => document.createElementNS("http://www.w3.org/2000/svg", "svg"),
+      mount: () => cleanup,
+    };
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]), [popover]);
+    adapter.start();
+    const button = document.querySelector<HTMLButtonElement>('[data-codex-ui-action="popover"]')!;
+    button.click();
+    const card = document.querySelector('[data-codex-ui-popover="popover"]')!;
+    const stack = document.querySelector<HTMLElement>("[data-codex-ui-popovers]")!;
+    const modal = document.createElement("div");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.getBoundingClientRect = () => rect(0, 0, 600, 600);
+    document.body.append(modal);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(stack.style.zIndex).toBe("1");
+    expect(stack.inert).toBe(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(cleanup).not.toHaveBeenCalled();
+    expect(stack.firstElementChild).toBe(card);
+    modal.remove();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(stack.style.zIndex).toBe("");
+    expect(stack.inert).toBe(false);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(stack.firstElementChild).toBe(card);
+    button.click();
+    expect(cleanup).toHaveBeenCalledOnce();
     adapter.dispose();
   });
 

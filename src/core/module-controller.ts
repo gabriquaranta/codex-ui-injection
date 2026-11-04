@@ -1,11 +1,16 @@
-import type { Cleanup, UiPanel } from "./contracts.js";
+import type { Cleanup, UiPanel, UiPopover } from "./contracts.js";
 import { ModuleRegistry } from "./module-registry.js";
 
 export class ModuleController {
   readonly toolbarRoot: HTMLDivElement;
+  readonly popoverToolbarRoot: HTMLDivElement;
   readonly drawer: HTMLElement;
+  readonly popoverStack: HTMLDivElement;
   readonly #document: Document;
   readonly #registry: ModuleRegistry<UiPanel>;
+  readonly #popoverButtons = new Map<string, HTMLButtonElement>();
+  readonly #openPopovers = new Map<string, { host: HTMLElement; cleanup: Cleanup | void }>();
+  readonly #escapeHandler: EventListener;
   readonly #buttons = new Map<string, HTMLButtonElement>();
   readonly #buttonHandlers = new Map<string, EventListener>();
   readonly #onStateChange: () => void;
@@ -15,13 +20,25 @@ export class ModuleController {
   readonly #styleElement: HTMLStyleElement;
   #activeId: string | null = null;
   #activeCleanup: Cleanup | void = undefined;
+  #popoversSuspended = false;
 
-  constructor(document: Document, registry: ModuleRegistry<UiPanel>, onStateChange: () => void) {
+  constructor(document: Document, registry: ModuleRegistry<UiPanel>, onStateChange: () => void, popovers: readonly UiPopover[] = []) {
     this.#document = document;
     this.#registry = registry;
     this.#onStateChange = onStateChange;
     this.toolbarRoot = document.createElement("div");
     this.toolbarRoot.dataset.codexUiToolbar = "";
+    this.popoverToolbarRoot = document.createElement("div");
+    this.popoverToolbarRoot.dataset.codexUiPopoverToolbar = "";
+
+    this.popoverStack = document.createElement("div");
+    this.popoverStack.dataset.codexUiPopovers = "";
+    this.#escapeHandler = (event) => {
+      if (this.#popoversSuspended || (event as KeyboardEvent).key !== "Escape") return;
+      const id = [...this.#openPopovers.keys()].at(-1);
+      if (id) this.#closePopover(id);
+    };
+    document.addEventListener("keydown", this.#escapeHandler);
 
     this.drawer = document.createElement("aside");
     this.drawer.dataset.codexUiDrawer = "";
@@ -43,6 +60,20 @@ export class ModuleController {
     this.#closeButton.addEventListener("click", this.#closeHandler);
 
     for (const module of registry.all()) this.#addToolbarButton(module);
+    for (const popover of popovers) {
+      if (registry.get(popover.id) || this.#popoverButtons.has(popover.id)) throw new Error(`Duplicate UI action id: ${popover.id}`);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.codexUiAction = popover.id;
+      button.setAttribute("aria-label", popover.toolbarLabel);
+      button.setAttribute("aria-expanded", "false");
+      button.setAttribute("aria-pressed", "false");
+      button.title = popover.toolbarLabel;
+      button.append(popover.createIcon(document));
+      button.addEventListener("click", () => this.#togglePopover(popover));
+      this.popoverToolbarRoot.append(button);
+      this.#popoverButtons.set(popover.id, button);
+    }
 
     this.#styleElement = document.createElement("style");
     this.#styleElement.dataset.codexUiStyles = "";
@@ -51,7 +82,9 @@ export class ModuleController {
       :root[data-codex-ui-home-chat]:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-main-titlebar] { --app-shell-page-inline-end-inset: var(--codex-ui-drawer-width); }
       :root[data-codex-ui-home-chat]:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-active-page="true"] [data-app-shell-main-surface="default"] { clip-path: none; border-start-end-radius: 0; border-end-end-radius: 0; }
       :root[data-codex-ui-home-chat]:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-titlebar-slot="content"][data-app-shell-focus-area="right-panel"] { translate: calc(-1 * var(--codex-ui-drawer-width)) 0; }
-      [data-codex-ui-toolbar] { display: contents; }
+      [data-codex-ui-toolbar], [data-codex-ui-popover-toolbar] { display: contents; }
+      [data-codex-ui-popovers] { position: fixed; z-index: 1000; box-sizing: content-box; padding: 32px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; pointer-events: none; font: inherit; }
+      [data-codex-ui-popover] { flex: none; box-sizing: border-box; pointer-events: auto; color: var(--color-text-primary, CanvasText); overflow: hidden; font: inherit; }
       [data-codex-ui-action] { width: 28px; height: 28px; flex: 0 0 28px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
       [data-codex-ui-action]:hover, [data-codex-ui-action][aria-pressed="true"] { background: var(--color-background-primary-surface, rgba(127,127,127,.12)); }
       [data-codex-ui-action][aria-pressed="true"] { color: var(--color-text-primary, inherit); }
@@ -73,7 +106,7 @@ export class ModuleController {
   }
 
   setToolbarClass(className: string): void {
-    for (const button of this.#buttons.values()) button.className = className;
+    for (const button of [...this.#buttons.values(), ...this.#popoverButtons.values()]) button.className = className;
   }
 
   open(id: string): void {
@@ -103,6 +136,10 @@ export class ModuleController {
 
   dispose(): void {
     this.close();
+    this.closePopovers();
+    this.#document.removeEventListener("keydown", this.#escapeHandler);
+    this.popoverStack.remove();
+    this.popoverToolbarRoot.remove();
     for (const [id, handler] of this.#buttonHandlers) {
       this.#buttons.get(id)?.removeEventListener("click", handler);
     }
@@ -110,6 +147,49 @@ export class ModuleController {
     this.toolbarRoot.remove();
     this.drawer.remove();
     this.#styleElement.remove();
+  }
+
+  closePopovers(): void {
+    for (const id of [...this.#openPopovers.keys()]) this.#closePopover(id);
+  }
+
+  setPopoversSuspended(suspended: boolean): void {
+    if (this.#popoversSuspended === suspended) return;
+    this.#popoversSuspended = suspended;
+    this.popoverStack.inert = suspended;
+    this.popoverStack.style.zIndex = suspended ? "1" : "";
+  }
+
+  #togglePopover(popover: UiPopover): void {
+    if (this.#openPopovers.has(popover.id)) {
+      this.#closePopover(popover.id);
+      return;
+    }
+    const host = this.#document.createElement("section");
+    host.dataset.codexUiPopover = popover.id;
+    host.className = "rounded-2xl extension:border extension:border-default extension:shadow-md bg-surface-elevated-secondary electron:elevation-prominent";
+    host.setAttribute("aria-label", popover.toolbarLabel);
+    const root = host.attachShadow({ mode: "open" });
+    const style = this.#document.createElement("style");
+    style.textContent = `:host { display: block; color: inherit; font: inherit; } ${popover.styles ?? ""}`;
+    root.append(style);
+    this.popoverStack.append(host);
+    const cleanup = popover.mount(root);
+    this.#openPopovers.set(popover.id, { host, cleanup });
+    const button = this.#popoverButtons.get(popover.id)!;
+    button.setAttribute("aria-expanded", "true");
+    button.setAttribute("aria-pressed", "true");
+  }
+
+  #closePopover(id: string): void {
+    const popover = this.#openPopovers.get(id);
+    if (!popover) return;
+    popover.cleanup?.();
+    popover.host.remove();
+    this.#openPopovers.delete(id);
+    const button = this.#popoverButtons.get(id)!;
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-pressed", "false");
   }
 
   #addToolbarButton(module: UiPanel): void {

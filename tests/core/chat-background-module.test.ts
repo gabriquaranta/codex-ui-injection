@@ -10,7 +10,7 @@ describe("chat background module", () => {
     const openRequest = { result: { transaction: () => transaction }, onsuccess: () => {} };
     vi.stubGlobal("indexedDB", { open: () => openRequest });
     const setChatBackground = vi.fn();
-    const cleanup = chatBackgroundModule.activate({ document, registerPanel: vi.fn(), setChatBackground });
+    const cleanup = chatBackgroundModule.activate({ document, registerPanel: vi.fn(), registerPopover: vi.fn(), setChatBackground });
 
     openRequest.onsuccess();
     cleanup?.();

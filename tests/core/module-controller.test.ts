@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { UiPanel } from "../../src/core/contracts.js";
+import type { UiPanel, UiPopover } from "../../src/core/contracts.js";
 import { ModuleController } from "../../src/core/module-controller.js";
 import { ModuleRegistry } from "../../src/core/module-registry.js";
 
@@ -22,6 +22,31 @@ function testModule(id: string, onMount = vi.fn()): UiPanel {
 }
 
 describe("ModuleController", () => {
+  it("stacks open popovers and cleans up each one independently", () => {
+    const cleanup = vi.fn();
+    const popover = (id: string): UiPopover => ({
+      id,
+      toolbarLabel: id,
+      createIcon: (document) => document.createElementNS("http://www.w3.org/2000/svg", "svg"),
+      mount: () => cleanup,
+    });
+    const controller = new ModuleController(document, new ModuleRegistry([]), vi.fn(), [popover("one"), popover("two")]);
+    document.body.append(controller.popoverToolbarRoot, controller.popoverStack);
+    const one = controller.popoverToolbarRoot.querySelector<HTMLButtonElement>('[data-codex-ui-action="one"]')!;
+    const two = controller.popoverToolbarRoot.querySelector<HTMLButtonElement>('[data-codex-ui-action="two"]')!;
+    one.click();
+    two.click();
+    expect([...controller.popoverStack.children].map((element) => (element as HTMLElement).dataset.codexUiPopover)).toEqual(["one", "two"]);
+    expect(two.getAttribute("aria-expanded")).toBe("true");
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(controller.popoverStack.children).toHaveLength(1);
+    expect(two.getAttribute("aria-expanded")).toBe("false");
+    one.click();
+    expect(controller.popoverStack.children).toHaveLength(0);
+    expect(cleanup).toHaveBeenCalledTimes(2);
+    controller.dispose();
+  });
+
   it("opens, switches, toggles closed, and cleans up each view", () => {
     const cleanupOne = vi.fn();
     const cleanupTwo = vi.fn();

@@ -2,7 +2,8 @@ import { CodexAdapter } from "../codex/adapter.js";
 import { ModuleRegistry } from "../core/module-registry.js";
 import { chatBackgroundModule } from "../modules/chat-background/index.js";
 import { activateModules } from "../core/module-lifecycle.js";
-import type { UiPanel } from "../core/contracts.js";
+import type { UiPanel, UiPopover } from "../core/contracts.js";
+import { emptyPopoverModule } from "../modules/empty-popover/index.js";
 import { emptyPanelModule } from "../modules/empty-panel/index.js";
 import enabledModuleIds from "../../modules.json" with { type: "json" };
 import { BUILD_VERSION } from "../shared/version.js";
@@ -18,13 +19,15 @@ function startRenderer(): void {
   const legacyStyle = document.createElement("style");
   legacyStyle.dataset.codexUiLegacyCleanup = "";
   legacyStyle.textContent = "#codex-side-poc-button, #codex-side-poc-panel { display: none !important; flex: 0 0 0 !important; width: 0 !important; }";
-  const modules = ModuleRegistry.fromEnabled([emptyPanelModule, chatBackgroundModule], enabledModuleIds);
+  const modules = ModuleRegistry.fromEnabled([emptyPanelModule, emptyPopoverModule, chatBackgroundModule], enabledModuleIds);
   const panels: UiPanel[] = [];
+  const popovers: UiPopover[] = [];
   let adapter: CodexAdapter | undefined;
   let background: { image: Blob | null; opacity: number } | undefined;
   const cleanupModules = activateModules(modules.all(), {
     document,
     registerPanel: (panel) => panels.push(panel),
+    registerPopover: (popover) => popovers.push(popover),
     setChatBackground: (image, opacity) => {
       background = { image, opacity };
       adapter?.setChatBackground(image, opacity);
@@ -33,7 +36,7 @@ function startRenderer(): void {
   document.head.append(legacyStyle);
   let activeAdapter: CodexAdapter;
   try {
-    activeAdapter = new CodexAdapter(document, new ModuleRegistry(panels));
+    activeAdapter = new CodexAdapter(document, new ModuleRegistry(panels), popovers);
     adapter = activeAdapter;
     if (background) activeAdapter.setChatBackground(background.image, background.opacity);
     activeAdapter.start();
