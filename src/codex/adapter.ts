@@ -1,3 +1,4 @@
+import type { UiPanel } from "../core/contracts.js";
 import type { ModuleRegistry } from "../core/module-registry.js";
 import { ModuleController } from "../core/module-controller.js";
 
@@ -22,7 +23,7 @@ export class CodexAdapter {
   #mountFrame: number | null = null;
   #disposed = false;
 
-  constructor(document: Document, registry: ModuleRegistry) {
+  constructor(document: Document, registry: ModuleRegistry<UiPanel>) {
     this.#document = document;
     this.#backgroundStyle = document.createElement("style");
     this.#backgroundStyle.textContent = `

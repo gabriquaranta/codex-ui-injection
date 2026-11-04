@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { UiModule } from "../../src/core/contracts.js";
+import type { UiPanel } from "../../src/core/contracts.js";
 import { ModuleController } from "../../src/core/module-controller.js";
 import { ModuleRegistry } from "../../src/core/module-registry.js";
 
-function testModule(id: string, onMount = vi.fn()): UiModule {
+function testModule(id: string, onMount = vi.fn()): UiPanel {
   return {
     id,
     toolbarLabel: `Open ${id}`,
@@ -52,7 +52,7 @@ describe("ModuleController", () => {
 
   it("lets a module move or remove the close button", () => {
     const module = testModule("custom");
-    const custom: UiModule = {
+    const custom: UiPanel = {
       ...module,
       mount(root) {
         root.querySelector("[data-codex-ui-close]")?.remove();

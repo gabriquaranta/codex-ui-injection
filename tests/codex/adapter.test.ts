@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { CodexAdapter } from "../../src/codex/adapter.js";
 import { ModuleRegistry } from "../../src/core/module-registry.js";
-import { emptyPanelModule } from "../../src/modules/empty-panel/index.js";
+import { emptyPanel } from "../../src/modules/empty-panel/index.js";
 
 const fixture = readFileSync("tests/fixtures/codex.html", "utf8");
 
@@ -25,7 +25,7 @@ describe("CodexAdapter", () => {
   });
 
   it("mounts module actions last in the toolbar slot and the drawer in the flex layout", () => {
-    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
 
     const anchor = document.querySelector('button[aria-label="Chat actions"]')!;
@@ -44,7 +44,7 @@ describe("CodexAdapter", () => {
   });
 
   it("removes the panel outside home and restores the action on return", async () => {
-    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
     document.querySelector<HTMLButtonElement>('[data-codex-ui-action]')!.click();
     const home = document.querySelector('[data-sidebar-destination="builtin:home"]')!;
@@ -60,7 +60,7 @@ describe("CodexAdapter", () => {
   });
 
   it("detaches chat UI while a modal is open and restores it on close", async () => {
-    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
     document.querySelector<HTMLButtonElement>('[data-codex-ui-action]')!.click();
     const modal = document.createElement("div");
@@ -81,7 +81,7 @@ describe("CodexAdapter", () => {
   });
 
   it("keeps the drawer after pages added during navigation", async () => {
-    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
     const layout = document.querySelector(".layout")!;
     const drawer = document.querySelector("[data-codex-ui-drawer]")!;
@@ -105,7 +105,7 @@ describe("CodexAdapter", () => {
     viewer.append(close);
     document.body.append(viewer);
 
-    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
     expect(document.querySelector("[data-codex-ui-toolbar]")?.parentElement)
       .toBe(document.querySelector(".last-toolbar-group"));
@@ -113,7 +113,7 @@ describe("CodexAdapter", () => {
   });
 
   it("does not duplicate its UI when mounted more than once", () => {
-    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
     adapter.start();
 
@@ -123,7 +123,7 @@ describe("CodexAdapter", () => {
   });
 
   it("keeps the toolbar action at the end when a tab control expands", async () => {
-    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
 
     const toolbarRoot = document.querySelector("[data-codex-ui-toolbar]")!;
@@ -138,7 +138,7 @@ describe("CodexAdapter", () => {
   });
 
   it("resizes the panel by keyboard and preserves the selected width", () => {
-    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
     const action = document.querySelector<HTMLButtonElement>('[data-codex-ui-action="empty-panel"]')!;
     const drawer = document.querySelector<HTMLElement>("[data-codex-ui-drawer]")!;
@@ -156,7 +156,7 @@ describe("CodexAdapter", () => {
   it("shrinks the drawer when the remaining chat width is too small and restores styles on close", () => {
     const main = document.querySelector("main")!;
     main.getBoundingClientRect = () => rect(220, 44, 500, 956);
-    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
     adapter.start();
 
     const action = document.querySelector<HTMLButtonElement>('[data-codex-ui-action="empty-panel"]')!;

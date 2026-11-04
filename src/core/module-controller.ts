@@ -1,11 +1,11 @@
-import type { Cleanup, UiModule } from "./contracts.js";
+import type { Cleanup, UiPanel } from "./contracts.js";
 import { ModuleRegistry } from "./module-registry.js";
 
 export class ModuleController {
   readonly toolbarRoot: HTMLDivElement;
   readonly drawer: HTMLElement;
   readonly #document: Document;
-  readonly #registry: ModuleRegistry;
+  readonly #registry: ModuleRegistry<UiPanel>;
   readonly #buttons = new Map<string, HTMLButtonElement>();
   readonly #buttonHandlers = new Map<string, EventListener>();
   readonly #onStateChange: () => void;
@@ -16,7 +16,7 @@ export class ModuleController {
   #activeId: string | null = null;
   #activeCleanup: Cleanup | void = undefined;
 
-  constructor(document: Document, registry: ModuleRegistry, onStateChange: () => void) {
+  constructor(document: Document, registry: ModuleRegistry<UiPanel>, onStateChange: () => void) {
     this.#document = document;
     this.#registry = registry;
     this.#onStateChange = onStateChange;
@@ -112,7 +112,7 @@ export class ModuleController {
     this.#styleElement.remove();
   }
 
-  #addToolbarButton(module: UiModule): void {
+  #addToolbarButton(module: UiPanel): void {
     const button = this.#document.createElement("button");
     button.type = "button";
     button.dataset.codexUiAction = module.id;
@@ -127,7 +127,7 @@ export class ModuleController {
     this.#buttonHandlers.set(module.id, handler);
   }
 
-  #renderActive(module: UiModule): void {
+  #renderActive(module: UiPanel): void {
     this.#body.replaceChildren();
     const host = this.#document.createElement("div");
     host.dataset.codexUiModuleRoot = module.id;

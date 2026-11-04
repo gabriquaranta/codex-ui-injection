@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { UiModule } from "../../src/core/contracts.js";
+import type { UiPanel } from "../../src/core/contracts.js";
 import { ModuleRegistry } from "../../src/core/module-registry.js";
 
-function moduleWithId(id: string): UiModule {
+function moduleWithId(id: string): UiPanel {
   return {
     id,
     toolbarLabel: id,

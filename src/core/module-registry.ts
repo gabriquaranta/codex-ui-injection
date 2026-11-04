@@ -1,11 +1,9 @@
-import type { UiModule } from "./contracts.js";
+export class ModuleRegistry<T extends { readonly id: string }> {
+  readonly #modules: readonly T[];
+  readonly #byId: ReadonlyMap<string, T>;
 
-export class ModuleRegistry {
-  readonly #modules: readonly UiModule[];
-  readonly #byId: ReadonlyMap<string, UiModule>;
-
-  constructor(modules: readonly UiModule[]) {
-    const byId = new Map<string, UiModule>();
+  constructor(modules: readonly T[]) {
+    const byId = new Map<string, T>();
     for (const module of modules) {
       if (!module.id.trim()) throw new Error("UI module id must not be empty.");
       if (byId.has(module.id)) throw new Error(`Duplicate UI module id: ${module.id}`);
@@ -15,7 +13,7 @@ export class ModuleRegistry {
     this.#byId = byId;
   }
 
-  static fromEnabled(modules: readonly UiModule[], enabledIds: readonly string[]): ModuleRegistry {
+  static fromEnabled<T extends { readonly id: string }>(modules: readonly T[], enabledIds: readonly string[]): ModuleRegistry<T> {
     const available = new ModuleRegistry(modules);
     const enabled = enabledIds.map((id) => {
       const module = available.get(id);
@@ -25,11 +23,11 @@ export class ModuleRegistry {
     return new ModuleRegistry(enabled);
   }
 
-  all(): readonly UiModule[] {
+  all(): readonly T[] {
     return this.#modules;
   }
 
-  get(id: string): UiModule | undefined {
+  get(id: string): T | undefined {
     return this.#byId.get(id);
   }
 }

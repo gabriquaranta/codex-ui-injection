@@ -6,7 +6,7 @@ This file records implementation details that took non-trivial inspection or tes
 
 The toolkit adds a toolbar action and one shared right drawer to the running ChatGPT desktop app in Codex mode. Its first static module is an empty panel. The core changes renderer DOM and CSS only; it does not call Codex tools, edit conversations, or submit messages.
 
-- `UiModule` supplies an ID, toolbar label/icon, drawer title, `mount(ShadowRoot)` plus optional cleanup, and optional CSS.
+- `UiModule` supplies an ID and an activation function with optional cleanup. A module may register a `UiPanel`, which supplies a toolbar label/icon, drawer title, `mount(ShadowRoot)` plus optional cleanup, and optional CSS.
 - `ModuleRegistry` rejects duplicate IDs. `ModuleController` opens, closes, or switches the single drawer and runs view cleanup.
 - `CodexAdapter` maps named toolbar and right-drawer slots to the current renderer DOM. Features do not use Codex selectors.
 - Each module view uses a shadow root. This isolates module CSS while allowing inherited host fonts and CSS variables. The shell uses `--color-text-primary`, `--app-color-background-elevated-secondary`, and `--color-background-primary-surface`, with system-color fallbacks.
@@ -153,3 +153,11 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 ### Side chat background: 2026-11-04
 
 - Live inspection showed the native side chat under `data-app-shell-tab-panel-controller="right"` with its chat surface marked `data-includes-composer="true"`. The background and composer fade rules now include that surface on the active Home page. After injection, computed styles showed the image and transparent fade layers in both the main chat and side chat. Other right-panel tabs and visual appearance were not checked.
+
+### Module lifecycle: 2026-11-04
+
+- Panel registration and background loading now activate through the same `UiModule` contract. The panel controller still owns the shared drawer, and the adapter owns the chat background slot. The background module reads its own IndexedDB data and cancels a pending result on cleanup. The build hashes `modules.json` into the runtime version so config changes replace the startup script. Automated checks cover the lifecycle; live UI behavior after this refactor is unverified.
+
+### Background file location: 2026-11-04
+
+- The build now looks for the background image in `src/modules/chat-background/`. The existing GIF was moved there. The build passed, and the injector bundle was checked against the moved GIF. Live injection was not checked.

@@ -6,12 +6,16 @@ const packageJson = JSON.parse(await readFile(new URL("../package.json", import.
 await mkdir(new URL("../dist/", import.meta.url), { recursive: true });
 
 const imageTypes = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif" };
-const images = (await readdir(new URL("../", import.meta.url))).filter((name) => /^chat-background\.(png|jpe?g|webp|gif)$/i.test(name));
-if (images.length > 1) throw new Error("Keep only one chat-background image in the repository root.");
-const image = images[0] ? await readFile(new URL(`../${images[0]}`, import.meta.url)) : null;
+const backgroundDir = new URL("../src/modules/chat-background/", import.meta.url);
+const images = (await readdir(backgroundDir)).filter((name) => /^chat-background\.(png|jpe?g|webp|gif)$/i.test(name));
+if (images.length > 1) throw new Error("Keep only one chat-background image in src/modules/chat-background/.");
+const image = images[0] ? await readFile(new URL(images[0], backgroundDir)) : null;
 const extension = images[0]?.slice(images[0].lastIndexOf(".")).toLowerCase();
 const background = image ? `data:${imageTypes[extension]};base64,${image.toString("base64")}` : null;
-const version = image ? `${packageJson.version}+${createHash("sha256").update(image).digest("hex").slice(0, 12)}` : packageJson.version;
+const moduleConfig = await readFile(new URL("../modules.json", import.meta.url));
+const hash = createHash("sha256").update(moduleConfig);
+if (image) hash.update(image);
+const version = `${packageJson.version}+${hash.digest("hex").slice(0, 12)}`;
 const define = { __BUILD_VERSION__: JSON.stringify(version), __CHAT_BACKGROUND__: JSON.stringify(background) };
 
 await Promise.all([

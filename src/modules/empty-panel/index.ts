@@ -1,4 +1,4 @@
-import type { UiModule } from "../../core/contracts.js";
+import type { UiModule, UiPanel } from "../../core/contracts.js";
 
 function createPanelIcon(document: Document): SVGSVGElement {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -22,7 +22,7 @@ function createPanelIcon(document: Document): SVGSVGElement {
   return svg;
 }
 
-export const emptyPanelModule: UiModule = {
+export const emptyPanel: UiPanel = {
   id: "empty-panel",
   toolbarLabel: "Empty panel",
   drawerTitle: "Side panel",
@@ -34,5 +34,12 @@ export const emptyPanelModule: UiModule = {
     const message = root.ownerDocument.createElement("p");
     message.textContent = "Your panel is empty.";
     root.append(message);
+  },
+};
+
+export const emptyPanelModule: UiModule = {
+  id: emptyPanel.id,
+  activate(context) {
+    context.registerPanel(emptyPanel);
   },
 };
