@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <button data-sidebar-destination="builtin:home" aria-current="page">Home</button>
+    <div class="layout" data-app-shell-workspace-row="true" style="display:flex; flex-direction:row; width:1600px; height:1000px">
+      <nav aria-label="Sidebar">Sidebar</nav>
+      <div data-app-shell-active-page="true" style="display:contents">
+    <header class="toolbar" data-app-shell-header-toolbar="true" style="display:flex; flex-direction:row; justify-content:flex-end; width:1600px; height:44px">
+      <div class="toolbar-actions" style="display:flex; flex-direction:row; gap:8px">
+        <div style="display:contents">
+          <div class="contents" style="display:contents" data-toolbar-actions>
+            <button class="toolbar-action" type="button" aria-label="Chat actions">More</button>
+            <button class="toolbar-action" type="button" aria-label="View chat usage">Usage</button>
+          </div>
+        </div>
+        <div style="display:contents">
+          <button class="toolbar-action" type="button" data-thread-summary-panel-toggle="true" aria-label="Toggle pinned summary">Summary</button>
+        </div>
+      </div>
+        <div data-app-shell-header-slot="end"><div class="last-toolbar-group" data-app-shell-header-slot-content="true" style="display:flex; flex-direction:row; gap:6px">
+          <button class="toolbar-action" type="button" aria-label="Show tabs">1</button>
+        </div></div>
+    </header>
+      <main data-app-shell-main-surface="default"><section data-app-shell-focus-area="main" id="fixture-chat-panel">Conversation</section></main>
+      </div>
+    </div>
+  </body>
+</html>

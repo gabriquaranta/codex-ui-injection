@@ -1,0 +1,23 @@
+{
+  "name": "codex-ui-building-blocks",
+  "version": "0.1.36",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "targets": "npm run build --silent && node dist/inject.mjs --list",
+    "inject": "npm run build --silent && node dist/inject.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
