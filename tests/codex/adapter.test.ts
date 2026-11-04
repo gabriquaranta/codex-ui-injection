@@ -17,9 +17,13 @@ describe("CodexAdapter", () => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 1000 });
     document.querySelector(".layout")!.getBoundingClientRect = () => rect(0, 0, 1600, 1000);
     document.querySelector("main")!.getBoundingClientRect = () => rect(220, 44, 1380, 956);
+    document.querySelector<HTMLButtonElement>('[aria-label="Chat actions"]')!.getBoundingClientRect = () => rect(1400, 8, 28, 28);
+    document.querySelector<HTMLButtonElement>('[aria-label="View chat usage"]')!.getBoundingClientRect = () => rect(1434, 8, 28, 28);
+    document.querySelector<HTMLButtonElement>('[aria-label="Toggle pinned summary"]')!.getBoundingClientRect = () => rect(1468, 8, 28, 28);
+    document.querySelector<HTMLButtonElement>('[aria-label="Show tabs"]')!.getBoundingClientRect = () => rect(1502, 8, 28, 28);
   });
 
-  it("mounts module actions in the toolbar slot and the drawer in the flex layout", () => {
+  it("mounts module actions last in the toolbar slot and the drawer in the flex layout", () => {
     const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
     adapter.start();
 
@@ -28,13 +32,58 @@ describe("CodexAdapter", () => {
     const toolbarRoot = document.querySelector("[data-codex-ui-toolbar]")!;
     const drawer = document.querySelector("[data-codex-ui-drawer]")!;
     expect(action.parentElement).toBe(toolbarRoot);
-    expect(toolbarRoot.parentElement).toBe(anchor.parentElement);
-    expect(toolbarRoot.nextElementSibling).toBe(anchor);
+    expect(toolbarRoot.parentElement).toBe(document.querySelector(".last-toolbar-group"));
+    expect(toolbarRoot.previousElementSibling).toBe(document.querySelector('[aria-label="Show tabs"]'));
+    expect(toolbarRoot.parentElement?.lastElementChild).toBe(toolbarRoot);
     expect(drawer.parentElement).toBe(document.querySelector(".layout"));
 
     action.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(drawer.getAttribute("data-open")).toBe("true");
     expect((drawer as HTMLElement).style.marginTop).toBe("44px");
+    adapter.dispose();
+  });
+
+  it("removes the panel outside home and restores the action on return", async () => {
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    adapter.start();
+    document.querySelector<HTMLButtonElement>('[data-codex-ui-action]')!.click();
+    const home = document.querySelector('[data-sidebar-destination="builtin:home"]')!;
+    home.removeAttribute("aria-current");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelector("[data-codex-ui-drawer]")).toBeNull();
+    expect(document.querySelector("[data-codex-ui-toolbar]")).toBeNull();
+    home.setAttribute("aria-current", "page");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelector("[data-codex-ui-drawer]")?.getAttribute("data-open")).toBe("false");
+    expect(document.querySelector("[data-codex-ui-toolbar]")).not.toBeNull();
+    adapter.dispose();
+  });
+
+  it("keeps the drawer after pages added during navigation", async () => {
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    adapter.start();
+    const layout = document.querySelector(".layout")!;
+    const drawer = document.querySelector("[data-codex-ui-drawer]")!;
+    const page = document.createElement("div");
+    layout.append(page);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(layout.lastElementChild).toBe(drawer);
+    expect(drawer.previousElementSibling).toBe(page);
+    adapter.dispose();
+  });
+
+  it("keeps the toolbar action out of an image viewer", () => {
+    const viewer = document.createElement("div");
+    viewer.style.display = "flex";
+    const close = document.createElement("button");
+    close.getBoundingClientRect = () => rect(1560, 8, 28, 28);
+    viewer.append(close);
+    document.body.append(viewer);
+
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    adapter.start();
+    expect(document.querySelector("[data-codex-ui-toolbar]")?.parentElement)
+      .toBe(document.querySelector(".last-toolbar-group"));
     adapter.dispose();
   });
 
@@ -46,5 +95,55 @@ describe("CodexAdapter", () => {
     expect(document.querySelectorAll('[data-codex-ui-action="empty-panel"]')).toHaveLength(1);
     expect(document.querySelectorAll("[data-codex-ui-drawer]")).toHaveLength(1);
     adapter.dispose();
+  });
+
+  it("moves the toolbar action outside a tab control when it expands", () => {
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    adapter.start();
+
+    const toolbarRoot = document.querySelector("[data-codex-ui-toolbar]")!;
+    expect(toolbarRoot.parentElement).toBe(document.querySelector(".last-toolbar-group"));
+    document.querySelector<HTMLButtonElement>('[aria-label="Show tabs"]')!.getBoundingClientRect = () => rect(1502, 8, 320, 28);
+    window.dispatchEvent(new Event("resize"));
+
+    expect(toolbarRoot.parentElement).toBe(document.querySelector(".toolbar-actions"));
+    expect(toolbarRoot.parentElement?.lastElementChild).toBe(toolbarRoot);
+    adapter.dispose();
+  });
+
+  it("resizes the panel by keyboard and preserves the selected width", () => {
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    adapter.start();
+    const action = document.querySelector<HTMLButtonElement>('[data-codex-ui-action="empty-panel"]')!;
+    const drawer = document.querySelector<HTMLElement>("[data-codex-ui-drawer]")!;
+    drawer.getBoundingClientRect = () => rect(1240, 44, Number.parseFloat(drawer.style.width), 956);
+    action.click();
+    document.querySelector<HTMLElement>("[data-codex-ui-resize]")!
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    expect(drawer.style.width).toBe("380px");
+    action.click();
+    action.click();
+    expect(drawer.style.width).toBe("380px");
+    adapter.dispose();
+  });
+
+  it("shrinks the drawer when the remaining chat width is too small and restores styles on close", () => {
+    const main = document.querySelector("main")!;
+    main.getBoundingClientRect = () => rect(220, 44, 500, 956);
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanelModule]));
+    adapter.start();
+
+    const action = document.querySelector<HTMLButtonElement>('[data-codex-ui-action="empty-panel"]')!;
+    const drawer = document.querySelector<HTMLElement>("[data-codex-ui-drawer]")!;
+    action.click();
+    expect(main.style.minWidth).toBe("0");
+    expect(drawer.style.width).toBe("220px");
+    expect(document.documentElement.style.getPropertyValue("--codex-ui-drawer-width")).toBe("220px");
+
+    action.click();
+    expect(main.style.minWidth).toBe("");
+    expect(drawer.style.width).toBe("360px");
+    adapter.dispose();
+    expect(document.documentElement.style.getPropertyValue("--codex-ui-drawer-width")).toBe("");
   });
 });

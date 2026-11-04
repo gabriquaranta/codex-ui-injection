@@ -33,10 +33,12 @@ The toolkit adds a toolbar action and one shared right drawer to the running Cha
 
 ### Confirmed toolbar and layout hooks
 
-- The current chat toolbar has a button with `aria-label="Chat actions"`. It is inside a `display: contents` wrapper in the right-side toolbar action group. Inserting the POC button before that control places it in the real toolbar; its 28 px width expands the group to the left.
-- The adapter inserts a `display: contents` toolbar root immediately before the `Chat actions` button. Module actions are children of that root, so they inherit the action group layout without becoming feature-specific DOM hooks.
-- The active conversation is a visible `<main>` element. Its ancestors include `display: contents` wrappers and a full-size row flex container (`display: flex; flex-direction: row`). The POC finds that container from the visible `<main>` rather than relying on generated React IDs.
-- Append the panel as a flex child of that row container. Give it a 360 px flex basis (capped at 42% of the viewport). The main view then shrinks to make room. Position the panel vertically from the active `<main>` rectangle; the row container starts above the content header.
+- The current chat toolbar has a button with `aria-label="Chat actions"`. It is inside a `display: contents` wrapper in the right-side toolbar action group. The adapter uses it to find that group and appends module actions after the existing controls.
+- The button's immediate parent is a `display: contents` group that contains only some toolbar controls. Other controls, including `Toggle pinned summary` and `Show tabs`, sit in sibling groups, and `Show tabs` is itself inside a nested flex group. The adapter finds the rightmost visible native toolbar button on the same row as `Chat actions` and appends its root to that button's row-flex parent. Wide tab controls are excluded so the injected action does not join an expanded tab pill. Fixtures cover both layouts.
+- The adapter copies the native toolbar button's class onto module actions. Leave the inactive action's `color` unset so the app's own class rule supplies the exact muted icon color. A live computed-style check showed both colors as `rgba(13, 13, 13, 0.494)` on the inspected renderer. The active action uses `--color-text-primary`.
+- The active conversation is a visible `<main>` element. Its ancestors include `display: contents` wrappers and a full-size row flex container (`display: flex; flex-direction: row`). The adapter finds that container from the visible `<main>` rather than relying on generated React IDs.
+- The adapter appends the drawer as a flex child of that row container. It has a 360 px flex basis (capped at 42% of the viewport), so the main view shrinks to make room. The adapter positions it vertically from the active `<main>` rectangle; the row container starts above the content header.
+- When open, the adapter sets the active `<main>` minimum width to zero and sizes the drawer to preserve 680 px for the chat where possible. The drawer can shrink to 220 px when other panels reduce available width; closing restores the original main minimum width and the 360 px drawer width. A fixture test checks this lifecycle. This is intended to prevent flex overflow when another app panel is open.
 - A `MutationObserver` remounts the UI if React replaces toolbar or layout nodes. A cleanup callback disconnects the previous observer and resize listener when the injection is reapplied.
 
 ### Initial POC verification: 2026-11-04
@@ -52,7 +54,7 @@ The toolkit adds a toolbar action and one shared right drawer to the running Cha
 - **Composition:** modules are imported through a static registry. One drawer is shared; selecting the active action closes it, and selecting another module replaces its view after cleanup.
 - **Theme:** default shell styles use observed Codex CSS variables. Optional module CSS is scoped by shadow DOM; the core does not replace the global theme.
 - **Target choice:** the CLI identifies the main `app://.../index.html` page without an `initialRoute` parameter. Auxiliary Spotlight and detached-window targets are excluded. An explicit target ID is accepted only if it matches the main app page.
-- **Verification:** type-check passed; Vitest passed 7 tests across 4 files; both bundles built. Live CDP smoke check found one toolbar action and one drawer. Opening produced a 360 px drawer with `drawer.left === main.right`; closing restored 360 px to the main view. Re-running injection kept one action and one drawer.
+- **Verification:** type-check passed; Vitest passed 10 tests across 4 files; both bundles built. Live CDP smoke checks found one toolbar action and one drawer. Version 0.1.5 keeps the action after the rightmost native toolbar control. With the drawer open at a 1712 px renderer width, the main view measured 1027 px and the drawer 360 px. A CDP viewport simulation at 1293 px narrowed the drawer to 288 px and preserved a 680 px main view; clearing the override restored the original widths. A wide-tab simulation kept the injected action in the toolbar row rather than the tab's inner group. The native Codex side panel was not opened through CDP, so the screenshot's simultaneous native-plus-injected panel state remains unverified live.
 - **Scope:** tested on macOS only. No runtime module loader, data connectors, published package, or custom theme module is included.
 
 ### Historical duplicate injection incident: 2026-11-04
@@ -80,3 +82,37 @@ For each non-trivial discovery, add a dated note with:
 4. How it was verified and any platform/version limit.
 
 Do not record session-specific target IDs as stable facts. Label unverified ideas as hypotheses.
+
+### Image viewer isolation: 2026-11-04
+
+- The toolbar lookup searches inside the `header` containing `Chat actions`. Live renderer inspection showed that `Show tabs` is outside the first flex ancestor but shares that header. A button in a separate image viewer can otherwise match the same screen row and receive the injected toolbar. A fixture checks the separate viewer case; the live image viewer remains unverified.
+
+### Concurrent panels: 2026-11-04
+
+- Live inspection showed the native chat frame retained a fixed width wider than its viewport when both panels were open. The main title bar also used an inline end inset that excluded the injected drawer. While the drawer is open, the frame is capped at its parent width and the title bar inset includes the drawer width. With both panels open, CDP measured the frame and viewport at 976 px and the title bar end within 4 px of the native panel start. Closing the drawer removed the added title bar inset.
+
+### Panel corners: 2026-11-04
+
+- The app draws a rounded page surface behind the workspace and clips the main surface with a rounded clip path. With the injected drawer open, that clip creates a corner at the shared edge. The drawer now uses the observed `--radius-xl-base` on its outer corners, while the main surface clip is removed for the open state. Live renderer inspection showed 12 px drawer corners and a square shared edge; closing the drawer restored the app clip. Dark mode and other platforms remain unverified.
+
+### Native panel tabs: 2026-11-04
+
+- The native right panel tab row is positioned independently of its panel. With a 360 px injected drawer open, CDP measured the tab row 360 px to the right of the native panel. The adapter styles translate that row by the drawer width while open. Live geometry then placed both left edges at 961 px; closing the injected drawer restored the original position.
+
+### Drawer resizing: 2026-11-04
+
+- The drawer has a left-edge pointer handle and arrow-key controls. The selected width is retained while the runtime remains active and is limited by the available layout width, with a 220 px minimum. The existing drawer-width variable keeps title bar offsets in sync. A live CDP drag changed the drawer from 360 px to 430 px; the keyboard lifecycle is covered by a fixture. Dragging with the native panel open was not checked live.
+
+- The resize hit area is 8 px wide; its hover and keyboard focus indicator is 1 px wide. Live hover and drag verification after the change was not completed.
+
+### Home-only mounting: 2026-11-04
+
+- The app marks the active Home navigation button with `data-sidebar-destination="builtin:home"` and `aria-current="page"`. The adapter observes that selection, closes and detaches its UI outside Home, and remounts the closed panel on return. A live Home to Spaces to Home transition confirmed the toolbar and drawer were absent in Spaces and restored on Home. Other destinations were not checked live.
+
+### Module close control: 2026-11-04
+
+- The shell no longer draws a title or divider. The module title remains the drawer accessible label. The close button is inserted into the module shadow root before `mount`, so a module can style, move, or remove `[data-codex-ui-close]`. Live CDP confirmed the button closes the panel; the fixture checks removal and restoration when switching modules.
+
+### Drawer ordering during navigation: 2026-11-04
+
+- The workspace row can receive new `data-app-shell-active-page` children after the injected drawer. When a later child becomes active, flex ordering can place the drawer to its left. The adapter now keeps the drawer as the last row child. A fixture and a live DOM insertion check confirmed the drawer returns to the end and remains at the main view right edge; a live tab switch was not exercised.

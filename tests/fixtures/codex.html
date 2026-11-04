@@ -2,12 +2,23 @@
 <html>
   <head></head>
   <body>
-    <div class="toolbar">
-      <div class="contents" data-toolbar-actions>
-        <button class="toolbar-action" type="button" aria-label="Chat actions">More</button>
-        <button class="toolbar-action" type="button" aria-label="View chat usage">Usage</button>
+    <button data-sidebar-destination="builtin:home" aria-current="page">Home</button>
+    <header class="toolbar" style="display:flex; flex-direction:row; justify-content:flex-end; width:1600px; height:44px">
+      <div class="toolbar-actions" style="display:flex; flex-direction:row; gap:8px">
+        <div style="display:contents">
+          <div class="contents" style="display:contents" data-toolbar-actions>
+            <button class="toolbar-action" type="button" aria-label="Chat actions">More</button>
+            <button class="toolbar-action" type="button" aria-label="View chat usage">Usage</button>
+          </div>
+        </div>
+        <div style="display:contents">
+          <button class="toolbar-action" type="button" aria-label="Toggle pinned summary">Summary</button>
+        </div>
       </div>
-    </div>
+        <div class="last-toolbar-group" style="display:flex; flex-direction:row; gap:6px">
+          <button class="toolbar-action" type="button" aria-label="Show tabs">1</button>
+        </div>
+    </header>
     <div class="layout" style="display:flex; flex-direction:row; width:1600px; height:1000px">
       <nav aria-label="Sidebar">Sidebar</nav>
       <main><section>Conversation</section></main>

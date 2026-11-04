@@ -9,7 +9,6 @@ export class ModuleController {
   readonly #buttons = new Map<string, HTMLButtonElement>();
   readonly #buttonHandlers = new Map<string, EventListener>();
   readonly #onStateChange: () => void;
-  readonly #header: HTMLHeadingElement;
   readonly #body: HTMLDivElement;
   readonly #closeButton: HTMLButtonElement;
   readonly #closeHandler: EventListener;
@@ -29,19 +28,16 @@ export class ModuleController {
     this.drawer.dataset.open = "false";
     this.drawer.setAttribute("aria-label", "Feature panel");
 
-    const header = document.createElement("header");
-    this.#header = document.createElement("h2");
     this.#closeButton = document.createElement("button");
     this.#closeButton.type = "button";
     this.#closeButton.dataset.codexUiClose = "";
     this.#closeButton.setAttribute("aria-label", "Close panel");
     this.#closeButton.title = "Close panel";
     this.#closeButton.textContent = "×";
-    header.append(this.#header, this.#closeButton);
 
     this.#body = document.createElement("div");
     this.#body.dataset.codexUiBody = "";
-    this.drawer.append(header, this.#body);
+    this.drawer.append(this.#body);
 
     this.#closeHandler = () => this.close();
     this.#closeButton.addEventListener("click", this.#closeHandler);
@@ -51,18 +47,21 @@ export class ModuleController {
     this.#styleElement = document.createElement("style");
     this.#styleElement.dataset.codexUiStyles = "";
     this.#styleElement.textContent = `
+      :root:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-thread-edge-divider] { max-width: 100%; }
+      :root:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-main-titlebar] { --app-shell-page-inline-end-inset: var(--codex-ui-drawer-width); }
+      :root:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-main-surface="default"] { clip-path: none; border-start-end-radius: 0; border-end-end-radius: 0; }
+      :root:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-titlebar-slot="content"][data-app-shell-focus-area="right-panel"] { translate: calc(-1 * var(--codex-ui-drawer-width)) 0; }
       [data-codex-ui-toolbar] { display: contents; }
-      [data-codex-ui-action] { width: 28px; height: 28px; flex: 0 0 28px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; }
+      [data-codex-ui-action] { width: 28px; height: 28px; flex: 0 0 28px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
       [data-codex-ui-action]:hover, [data-codex-ui-action][aria-pressed="true"] { background: var(--color-background-primary-surface, rgba(127,127,127,.12)); }
-      [data-codex-ui-action]:focus-visible, [data-codex-ui-close]:focus-visible { outline: 2px solid var(--color-ring-primary, #5b9cff); outline-offset: 2px; }
+      [data-codex-ui-action][aria-pressed="true"] { color: var(--color-text-primary, inherit); }
+      [data-codex-ui-action]:focus-visible { outline: 2px solid var(--color-ring-primary, #5b9cff); outline-offset: 2px; }
       [data-codex-ui-action] svg { width: 16px; height: 16px; }
-      [data-codex-ui-drawer] { box-sizing: border-box; width: min(360px, 42vw); min-width: min(280px, 42vw); max-width: 42vw; flex: 0 0 min(360px, 42vw); align-self: flex-start; flex-direction: column; overflow: auto; color: var(--color-text-primary, CanvasText); background: var(--app-color-background-elevated-secondary, Canvas); border-left: 1px solid var(--color-background-primary-surface, rgba(127,127,127,.12)); font: inherit; }
+      [data-codex-ui-drawer] { position: relative; box-sizing: border-box; width: min(360px, 42vw); min-width: min(280px, 42vw); max-width: 42vw; flex: 0 0 min(360px, 42vw); align-self: flex-start; flex-direction: column; overflow: hidden; border-start-end-radius: var(--radius-xl-base, 12px); border-end-end-radius: var(--radius-xl-base, 12px); color: var(--color-text-primary, CanvasText); background: var(--app-color-background-elevated-secondary, Canvas); border-left: 1px solid var(--color-background-primary-surface, rgba(127,127,127,.12)); font: inherit; }
+      [data-codex-ui-resize] { position: absolute; inset: 0 auto 0 0; width: 8px; cursor: col-resize; touch-action: none; z-index: 1; }
+      [data-codex-ui-resize]:hover::before, [data-codex-ui-resize]:focus-visible::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 1px; background: var(--color-ring-primary, #5b9cff); opacity: .6; }
       [data-codex-ui-drawer][data-open="true"] { display: flex; }
       [data-codex-ui-drawer][data-open="false"] { display: none; }
-      [data-codex-ui-drawer] > header { height: 56px; box-sizing: border-box; flex: 0 0 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--color-background-primary-surface, rgba(127,127,127,.12)); }
-      [data-codex-ui-drawer] h2 { margin: 0; font-size: 15px; font-weight: 600; }
-      [data-codex-ui-close] { width: 32px; height: 32px; border: 0; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; font: inherit; font-size: 20px; }
-      [data-codex-ui-close]:hover { background: var(--color-background-primary-surface, rgba(127,127,127,.12)); }
       [data-codex-ui-body] { min-height: 0; flex: 1; overflow: auto; }
       [data-codex-ui-module-root] { display: block; min-width: 0; color: inherit; font: inherit; }
     `;
@@ -86,7 +85,7 @@ export class ModuleController {
     }
     this.#unmountActive();
     this.#activeId = id;
-    this.#header.textContent = module.drawerTitle;
+    this.drawer.setAttribute("aria-label", module.drawerTitle);
     this.drawer.dataset.open = "true";
     this.#renderActive(module);
     this.#updateButtons();
@@ -134,13 +133,19 @@ export class ModuleController {
     host.dataset.codexUiModuleRoot = module.id;
     const shadowRoot = host.attachShadow({ mode: "open" });
     const baseStyle = this.#document.createElement("style");
-    baseStyle.textContent = ":host { display: block; min-width: 0; color: inherit; font: inherit; }";
+    baseStyle.textContent = `
+      :host { display: block; position: relative; min-width: 0; min-height: 100%; color: inherit; font: inherit; }
+      [data-codex-ui-close] { position: absolute; top: 12px; right: 16px; width: 32px; height: 32px; border: 0; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; font: inherit; font-size: 20px; }
+      [data-codex-ui-close]:hover { background: var(--color-background-primary-surface, rgba(127,127,127,.12)); }
+      [data-codex-ui-close]:focus-visible { outline: 2px solid var(--color-ring-primary, #5b9cff); outline-offset: 2px; }
+    `;
     shadowRoot.append(baseStyle);
     if (module.styles) {
       const moduleStyle = this.#document.createElement("style");
       moduleStyle.textContent = module.styles;
       shadowRoot.append(moduleStyle);
     }
+    shadowRoot.append(this.#closeButton);
     this.#body.append(host);
     this.#activeCleanup = module.mount(shadowRoot);
   }
