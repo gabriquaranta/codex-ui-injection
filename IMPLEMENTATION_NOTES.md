@@ -169,7 +169,7 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 
 ### Native summary alignment: 2026-11-04
 
-- Live renderer inspection found the summary button at `data-thread-summary-panel-toggle="true"` and its card at `data-summary-panel-variant="summary"` within the active page. The closed card can remain in the DOM off screen, so the adapter checks the button's `aria-pressed` state and the card bounds. Popover actions mount immediately before the summary button; open injected cards use the native card width and align 8 px below it. Closing the native summary closes injected popovers. Resize and mutation observers update the geometry.
+- Live renderer inspection found the summary button at `data-thread-summary-panel-toggle="true"` and its card at `data-summary-panel-variant="summary"` within the active page. The closed card can remain in the DOM off screen, so the adapter checks the button's `aria-pressed` state and the card bounds. Popover actions mount immediately before the summary button; open injected cards use the native card width and align 8 px below it. Resize and mutation observers update the geometry.
 - With version 0.1.32, live CDP measurements showed both cards at 300 px wide with matching edges and an 8 px vertical gap. A 1250 px viewport simulation preserved that alignment; closing the summary closed the injected card. The combined cards were visually inspected. A fixture covers button placement, resizing, and summary closure; multiple injected cards were not checked live.
 
 ### Popover shadow: 2026-11-04
@@ -209,3 +209,5 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 ### Popover alignment and tooltip: 2026-11-05
 
 - Live CDP measurements showed the native summary slides from beyond the main surface into its final position; the injected stack retained an early horizontal measurement. Version 0.1.54 clamps the stack to the main surface edge while the summary enters and removes its elevated z-index so native tooltips can appear above it. Live measurements showed matching card edges and an 8 px gap after opening the summary; hit testing placed the summary tooltip above the open injected card. Type-check and tests passed.
+
+- Version 0.1.55 keeps injected popovers open when the native summary closes and moves the stack back to the top of the main surface. The adapter fixture and a live CDP interaction confirmed the custom popover remains open.

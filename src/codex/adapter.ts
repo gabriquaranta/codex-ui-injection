@@ -23,7 +23,6 @@ export class CodexAdapter {
   #backgroundUrl: string | null = null;
   #mountFrame: number | null = null;
   #disposed = false;
-  #summaryVisible = false;
   readonly #responseRootHandlers: readonly ((root: HTMLElement) => (() => void) | void)[];
   readonly #responseRootCleanups = new Map<HTMLElement, Array<() => void>>();
 
@@ -194,7 +193,6 @@ export class CodexAdapter {
     if (!anchor || !toolbarSlot || !layout) {
       this.#controller.close();
       this.#controller.closePopovers();
-      this.#summaryVisible = false;
       this.#controller.popoverStack.remove();
       this.#controller.popoverToolbarRoot.remove();
       this.#controller.toolbarRoot.remove();
@@ -237,8 +235,6 @@ export class CodexAdapter {
     const visibleSummary = summaryButton?.getAttribute("aria-pressed") === "true"
       && summaryRect && summaryRect.width > 0 && summaryRect.height > 0
       && summaryRect.left < mainRect.right && summaryRect.right > mainRect.left ? summaryRect : null;
-    if (this.#summaryVisible && !visibleSummary) this.#controller.closePopovers();
-    this.#summaryVisible = Boolean(visibleSummary);
     stack.style.top = `${(visibleSummary ? visibleSummary.bottom + 8 : mainRect.top + 8) - POPOVER_SHADOW_SPACE}px`;
     stack.style.width = `${Math.max(0, Math.min(visibleSummary?.width ?? 300, mainRect.width - 16))}px`;
     stack.style.right = `${(this.#document.defaultView?.innerWidth ?? mainRect.right) - Math.min(visibleSummary?.right ?? mainRect.right - 8, mainRect.right - 8) - POPOVER_SHADOW_SPACE}px`;

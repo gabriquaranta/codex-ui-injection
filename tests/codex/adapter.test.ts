@@ -77,8 +77,9 @@ describe("CodexAdapter", () => {
     expect(stack.style.width).toBe("240px");
     summaryButton.setAttribute("aria-pressed", "false");
     await new Promise((resolve) => setTimeout(resolve, 30));
-    expect(stack.children).toHaveLength(0);
-    expect(action.getAttribute("aria-expanded")).toBe("false");
+    expect(stack.children).toHaveLength(1);
+    expect(action.getAttribute("aria-expanded")).toBe("true");
+    expect(stack.style.top).toBe("20px");
     adapter.dispose();
   });
 
