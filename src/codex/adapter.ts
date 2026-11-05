@@ -241,7 +241,7 @@ export class CodexAdapter {
     this.#summaryVisible = Boolean(visibleSummary);
     stack.style.top = `${(visibleSummary ? visibleSummary.bottom + 8 : mainRect.top + 8) - POPOVER_SHADOW_SPACE}px`;
     stack.style.width = `${Math.max(0, Math.min(visibleSummary?.width ?? 300, mainRect.width - 16))}px`;
-    stack.style.right = `${(this.#document.defaultView?.innerWidth ?? mainRect.right) - (visibleSummary?.right ?? mainRect.right - 8) - POPOVER_SHADOW_SPACE}px`;
+    stack.style.right = `${(this.#document.defaultView?.innerWidth ?? mainRect.right) - Math.min(visibleSummary?.right ?? mainRect.right - 8, mainRect.right - 8) - POPOVER_SHADOW_SPACE}px`;
     stack.style.bottom = `${Math.max(16, (this.#document.defaultView?.innerHeight ?? mainRect.bottom) - mainRect.bottom + 16) - POPOVER_SHADOW_SPACE}px`;
     this.#observeTargets([toolbarSlot, layout.element, layout.main, ...(visibleSummary && summary ? [summary] : [])]);
     this.#updateDrawerGeometry();

@@ -205,3 +205,7 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 - Version 0.1.52 makes `UiStreamAnimation` a `UiModule` base class with a no-op `animate` method. Effects inherit response observation and cancellation; the glitch subclass also initializes and releases its highlight resources. Fixtures cover inheritance and cleanup; live appearance remains unverified.
 
 - Version 0.1.53 registers an optional `empty-stream-animation` template. Its inherited lifecycle observes words, and its animation does nothing until customized. It is not enabled by default.
+
+### Popover alignment and tooltip: 2026-11-05
+
+- Live CDP measurements showed the native summary slides from beyond the main surface into its final position; the injected stack retained an early horizontal measurement. Version 0.1.54 clamps the stack to the main surface edge while the summary enters and removes its elevated z-index so native tooltips can appear above it. Live measurements showed matching card edges and an 8 px gap after opening the summary; hit testing placed the summary tooltip above the open injected card. Type-check and tests passed.

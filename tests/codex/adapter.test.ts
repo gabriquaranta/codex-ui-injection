@@ -66,6 +66,10 @@ describe("CodexAdapter", () => {
     expect(stack.style.top).toBe("344px");
     expect(stack.style.right).toBe("-12px");
     expect(stack.style.width).toBe("300px");
+    summary.getBoundingClientRect = () => rect(1500, 52, 300, 316);
+    window.dispatchEvent(new Event("resize"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(stack.style.right).toBe("-24px");
     summary.getBoundingClientRect = () => rect(980, 52, 240, 200);
     window.dispatchEvent(new Event("resize"));
     await new Promise((resolve) => setTimeout(resolve, 30));
