@@ -5,6 +5,8 @@ import { activateModules } from "../core/module-lifecycle.js";
 import type { UiPanel, UiPopover } from "../core/contracts.js";
 import { emptyPopoverModule } from "../modules/empty-popover/index.js";
 import { emptyPanelModule } from "../modules/empty-panel/index.js";
+import { emptyStreamAnimationModule } from "../modules/empty-stream-animation/index.js";
+import { streamGlitchModule } from "../modules/stream-glitch/index.js";
 import enabledModuleIds from "../../modules.json" with { type: "json" };
 import { BUILD_VERSION } from "../shared/version.js";
 
@@ -19,15 +21,17 @@ function startRenderer(): void {
   const legacyStyle = document.createElement("style");
   legacyStyle.dataset.codexUiLegacyCleanup = "";
   legacyStyle.textContent = "#codex-side-poc-button, #codex-side-poc-panel { display: none !important; flex: 0 0 0 !important; width: 0 !important; }";
-  const modules = ModuleRegistry.fromEnabled([emptyPanelModule, emptyPopoverModule, chatBackgroundModule], enabledModuleIds);
+  const modules = ModuleRegistry.fromEnabled([emptyPanelModule, emptyPopoverModule, emptyStreamAnimationModule, chatBackgroundModule, streamGlitchModule], enabledModuleIds);
   const panels: UiPanel[] = [];
   const popovers: UiPopover[] = [];
+  const responseRootHandlers: Array<(root: HTMLElement) => (() => void) | void> = [];
   let adapter: CodexAdapter | undefined;
   let background: { image: Blob | null; opacity: number } | undefined;
   const cleanupModules = activateModules(modules.all(), {
     document,
     registerPanel: (panel) => panels.push(panel),
     registerPopover: (popover) => popovers.push(popover),
+    registerResponseRootHandler: (handler) => responseRootHandlers.push(handler),
     setChatBackground: (image, opacity) => {
       background = { image, opacity };
       adapter?.setChatBackground(image, opacity);
@@ -36,7 +40,7 @@ function startRenderer(): void {
   document.head.append(legacyStyle);
   let activeAdapter: CodexAdapter;
   try {
-    activeAdapter = new CodexAdapter(document, new ModuleRegistry(panels), popovers);
+    activeAdapter = new CodexAdapter(document, new ModuleRegistry(panels), popovers, responseRootHandlers);
     adapter = activeAdapter;
     if (background) activeAdapter.setChatBackground(background.image, background.opacity);
     activeAdapter.start();

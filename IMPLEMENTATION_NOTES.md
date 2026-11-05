@@ -183,3 +183,25 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 ### Popovers during image preview: 2026-11-04
 
 - Live inspection found the image viewer uses a visible `role="dialog"` with `aria-modal="true"` and z-index 50. The adapter previously closed popovers when that dialog appeared. It now keeps them mounted, makes their stack inert behind the modal, and suspends their Escape handler until the dialog closes. Live checks with version 0.1.36 confirmed the same popover stayed mounted behind the image viewer and remained open after its close button was used. A fixture covers Escape during a modal and cleanup after return; the viewer's own Escape behavior was not confirmed live.
+
+### Stream glitch response effect: 2026-11-04
+
+- Live renderer inspection found assistant response roots marked with `[data-markdown-text-style="assistant-message"]` inside the active app page. The adjacent `data-conversation-role="assistant"` label is a sibling, not an ancestor. The adapter owns this selector and exposes matching roots to registered module handlers, so the feature module does not query Codex DOM.
+- The optional `stream-glitch` module watches each response root for text and child updates, waits 70 ms between changes, then animates its latest rendered block with visible color offsets, clipping, and horizontal shifts. It uses the Web Animations API and does not wrap or replace React-managed text nodes. It honors `prefers-reduced-motion`.
+- Version 0.1.39 fixes the initial selector so response handlers attach to Markdown roots. Versions 0.1.40 and 0.1.41 temporarily used a highly visible 1400 ms magenta/cyan flash and bypassed reduced-motion suppression for confirmation. A live CDP check on 0.1.41 confirmed a running animation and neon computed colors. Version 0.1.42 restored a 700 ms subtle effect; version 0.1.43 removes reduced-motion suppression at the user's request. Version 0.1.44 limited the effect to the final word. Version 0.1.45 processes completed words as text arrives and uses CSS text highlights plus positioned per-character glyph overlays, so each word scrambles and trembles without changing React's text nodes or animating whole lines.
+
+- Version 0.1.46 batches word geometry reads, uses one animated overlay per word, and excludes overlay mutations from adapter scans. Code inspection confirms response text is still read in full on each update, though append comparisons use `startsWith` and each batch walks the text nodes once. Type-check and tests passed; live performance and appearance remain unverified.
+
+- Version 0.1.47 cancels active word overlays on captured scroll events so hidden source text is restored when its viewport position changes. A fixture checks overlay removal on scroll; live streaming with scrolling remains unverified.
+
+- Version 0.1.48 uses monochrome shade glyphs and a brief horizontal tremble for the streamed-word effect. It inherits the response text color for light and dark themes. Visual appearance remains unverified.
+
+- Version 0.1.49 extracts response word observation into `src/core/stream-words.ts`. Effects can consume word ranges while the glitch module owns its appearance and cleanup. This preserves the existing full-text comparison and single-node word limitation; live appearance remains unverified.
+
+- Version 0.1.50 associates active glitch overlays with their response root and removes them when that root is detached. A fixture checks response cleanup; conversation switching during an animation remains unverified live.
+
+- Version 0.1.51 adds `UiStreamAnimation` and a shared lifecycle that observes word batches and cancels active effects on scroll, response removal, or module disposal. Effects own their visuals and signal completion. Fixtures cover word observation and effect cleanup; live appearance remains unverified.
+
+- Version 0.1.52 makes `UiStreamAnimation` a `UiModule` base class with a no-op `animate` method. Effects inherit response observation and cancellation; the glitch subclass also initializes and releases its highlight resources. Fixtures cover inheritance and cleanup; live appearance remains unverified.
+
+- Version 0.1.53 registers an optional `empty-stream-animation` template. Its inherited lifecycle observes words, and its animation does nothing until customized. It is not enabled by default.

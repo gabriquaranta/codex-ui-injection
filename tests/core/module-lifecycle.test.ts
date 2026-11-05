@@ -14,7 +14,7 @@ describe("module lifecycle", () => {
         return () => calls.push(`cleanup ${id}`);
       },
     }));
-    const context: ModuleContext = { document, registerPanel: vi.fn(), registerPopover: vi.fn(), setChatBackground: vi.fn() };
+    const context: ModuleContext = { document, registerPanel: vi.fn(), registerPopover: vi.fn(), registerResponseRootHandler: vi.fn(), setChatBackground: vi.fn() };
     const enabled = ModuleRegistry.fromEnabled(modules, ["first", "last"]);
     const dispose = activateModules(enabled.all(), context);
     dispose();
@@ -24,7 +24,7 @@ describe("module lifecycle", () => {
 
   it("registers the panel when its module activates", () => {
     const registerPanel = vi.fn();
-    const dispose = activateModules([emptyPanelModule], { document, registerPanel, registerPopover: vi.fn(), setChatBackground: vi.fn() });
+    const dispose = activateModules([emptyPanelModule], { document, registerPanel, registerPopover: vi.fn(), registerResponseRootHandler: vi.fn(), setChatBackground: vi.fn() });
     expect(registerPanel).toHaveBeenCalledWith(expect.objectContaining({ id: "empty-panel" }));
     dispose();
   });

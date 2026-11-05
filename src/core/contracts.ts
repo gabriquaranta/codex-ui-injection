@@ -4,6 +4,7 @@ export interface ModuleContext {
   readonly document: Document;
   readonly registerPanel: (panel: UiPanel) => void;
   readonly registerPopover: (popover: UiPopover) => void;
+  readonly registerResponseRootHandler: (handler: (root: HTMLElement) => void | Cleanup) => void;
   readonly setChatBackground: (image: Blob | null, opacity: number) => void;
 }
 

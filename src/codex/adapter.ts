@@ -24,9 +24,12 @@ export class CodexAdapter {
   #mountFrame: number | null = null;
   #disposed = false;
   #summaryVisible = false;
+  readonly #responseRootHandlers: readonly ((root: HTMLElement) => (() => void) | void)[];
+  readonly #responseRootCleanups = new Map<HTMLElement, Array<() => void>>();
 
-  constructor(document: Document, registry: ModuleRegistry<UiPanel>, popovers: readonly UiPopover[] = []) {
+  constructor(document: Document, registry: ModuleRegistry<UiPanel>, popovers: readonly UiPopover[] = [], responseRootHandlers: readonly ((root: HTMLElement) => (() => void) | void)[] = []) {
     this.#document = document;
+    this.#responseRootHandlers = responseRootHandlers;
     this.#backgroundStyle = document.createElement("style");
     this.#backgroundStyle.textContent = `
       :root[data-codex-ui-home-chat] [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) {
@@ -74,7 +77,15 @@ export class CodexAdapter {
     this.#controller.drawer.prepend(handle);
     this.#resizeHandler = () => this.#scheduleMount();
     this.#observer = new MutationObserver((records) => {
-      if (records.some((record) => !(record.target instanceof Element)
+      const relevant = records.filter((record) => !(record.target instanceof Element
+        && record.target.closest("[data-codex-ui-stream-glitch]"))
+        && !([...record.addedNodes, ...record.removedNodes].length > 0
+          && [...record.addedNodes, ...record.removedNodes].every((node) => node instanceof Element
+            && node.hasAttribute("data-codex-ui-stream-glitch"))));
+      if (relevant.some((record) => record.type === "attributes"
+        || !(record.target instanceof Element)
+        || !record.target.closest('[data-markdown-text-style="assistant-message"]'))) this.#syncResponseRoots();
+      if (relevant.some((record) => !(record.target instanceof Element)
         || !record.target.closest('[data-app-shell-focus-area="main"][id$="-chat-panel"]')
         || record.attributeName === "role"
         || Boolean(record.target.closest('[role="dialog"]'))
@@ -90,6 +101,7 @@ export class CodexAdapter {
     this.#document.head.append(this.#backgroundStyle);
     this.#mount();
     this.#observer.observe(this.#document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-current", "aria-modal", "aria-hidden", "aria-pressed", "role", "inert", "data-app-shell-active-page"] });
+    this.#syncResponseRoots();
     this.#document.defaultView?.addEventListener("resize", this.#resizeHandler);
   }
 
@@ -99,6 +111,8 @@ export class CodexAdapter {
     this.#stopResize?.();
     if (this.#mountFrame !== null) this.#document.defaultView?.cancelAnimationFrame(this.#mountFrame);
     this.#observer.disconnect();
+    for (const cleanups of this.#responseRootCleanups.values()) cleanups.forEach((cleanup) => cleanup());
+    this.#responseRootCleanups.clear();
     this.#resizeObserver.disconnect();
     this.#observedTargets = [];
     this.#document.defaultView?.removeEventListener("resize", this.#resizeHandler);
@@ -120,6 +134,23 @@ export class CodexAdapter {
       this.#mountFrame = null;
       this.#mount();
     });
+  }
+
+  #syncResponseRoots(): void {
+    const roots = new Set(this.#document.querySelectorAll<HTMLElement>(
+      '[data-app-shell-active-page="true"] [data-markdown-text-style="assistant-message"]',
+    ));
+    for (const [root, cleanups] of this.#responseRootCleanups) {
+      if (!roots.has(root)) {
+        cleanups.forEach((cleanup) => cleanup());
+        this.#responseRootCleanups.delete(root);
+      }
+    }
+    for (const root of roots) {
+      if (this.#responseRootCleanups.has(root)) continue;
+      this.#responseRootCleanups.set(root, this.#responseRootHandlers
+        .map((handler) => handler(root)).filter((cleanup): cleanup is () => void => cleanup !== undefined));
+    }
   }
 
   setChatBackground(image: Blob | null, opacity: number): void {
