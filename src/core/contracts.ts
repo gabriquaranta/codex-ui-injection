@@ -6,6 +6,7 @@ export interface ModuleContext {
   readonly registerPopover: (popover: UiPopover) => void;
   readonly registerResponseRootHandler: (handler: (root: HTMLElement) => void | Cleanup) => void;
   readonly setChatBackground: (image: Blob | null, opacity: number) => void;
+  readonly setWorkspaceBackground: (image: Blob | null, opacity: number) => void;
 }
 
 export interface UiModule {

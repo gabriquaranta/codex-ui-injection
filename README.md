@@ -4,7 +4,7 @@ A local TypeScript toolkit for adding small, UI-only modules to the Codex deskto
 
 ![alt text](assets/pci.png)
 
-To add a chat background, place one file named `chat-background.png`, `chat-background.jpg`, `chat-background.jpeg`, `chat-background.webp`, or `chat-background.gif` in `src/modules/chat-background/`, then run `npm run inject`. Remove the file and inject again to clear the background. The image is stored locally in the app and displayed at 30% opacity.
+To add a chat background, place one `chat-background.png`, `.jpg`, `.jpeg`, `.webp`, or `.gif` file in `src/modules/chat-background/`. To add a separate workspace background, place one `workspace-background.png`, `.jpg`, `.jpeg`, `.webp`, or `.gif` file in `src/modules/workspace-background/`. Run `npm run inject` after adding or removing an image. The workspace image spans the app window; the chat image stays on chat surfaces. Each image is stored locally in the app and displayed at 30% opacity.
 
 The core manages renderer discovery, module lifecycle, and layout. Modules do not call Codex tools, submit messages, or change conversation data. Each module owns any future data source it needs.
 

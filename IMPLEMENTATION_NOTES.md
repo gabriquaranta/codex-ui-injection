@@ -162,6 +162,26 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 
 - The build now looks for the background image in `src/modules/chat-background/`. The existing GIF was moved there. The build passed, and the injector bundle was checked against the moved GIF. Live injection was not checked.
 
+### Separate workspace background: 2026-11-06
+
+- A live read-only CDP inspection of the main renderer found `data-app-shell-workspace-row="true"` spanning the 1900 by 1031 app viewport. Its `data-app-shell-page-surface="true"` ancestor had an 85% white background; `[data-app-shell-main-surface="default"]` was solid white; the left navigation and `data-app-shell-left-panel-appearance` aside were transparent. The workspace background now uses a single fixed root background, and core CSS clears the observed opaque shell and main surfaces. The image is stored separately from the existing chat image under the IndexedDB `workspace` key. Type-check and build passed. A temporary image showed through the left navigation and, with the chat image removed, through the conversation area; restoring the chat image put its layer back over the conversation. The test image was removed and the chat image restored by reinjecting the build.
+
+- A temporary animated GIF was stored as `image/gif`; Chromium `ImageDecoder` reported two frames and decoded distinct colors from each. The runtime's CSS background uses the resulting GIF blob URL. Frame playback was not confirmed: `prefers-reduced-motion: reduce` is true in the renderer, and the screenshot comparison showed no frame change. After version 0.1.57, the right pane's canvas and surface nodes report transparent computed backgrounds, but a live screenshot still shows the pane as white. CSS inspection is not visual proof; right-pane continuity remains unresolved and needs the actual rendered surface owner. The injector uses CDP `Page` and `Runtime` commands against the main target; the repository has no Electron host API to change background throttling. GIF playback while Codex is unfocused remains unverified; verify focus loss on the live app and identify whether its renderer or host controls playback before changing it.
+
+- Live inspection found an opaque body above the root image and an opaque parent of the right tab controller. Version 0.1.58 clears both while the workspace background is active. A screenshot after injection shows the GIF image continuing through the main chat, left navigation, and open side chat. The temporary diagnostic image override was removed from the live renderer. Animation during focus loss remains unverified.
+
+- The navigation rail and title bar have separate shell attributes. Version 0.1.59 gives them the opaque theme surface color while the workspace image is active. A live screenshot shows the rail and title bar white, with the image still visible in the workspace and side chat.
+
+- The shell frame has 4 px of right and bottom padding in the live renderer. Version 0.1.60 colors those edges with an inset shadow; a live screenshot shows the workspace image inside the frame and the shell edges in the theme surface color.
+
+- Version 0.1.61 adds a rounded, one-pixel workspace outline using the shell's border color, title bar height, and navigation rail width. The outline ignores pointer events. A live screenshot shows the outline around the workspace; the right panel was closed during this check.
+
+- Version 0.1.62 paints the theme surface outside the rounded outline to cover the image at all four corners. The live renderer reports a 15 px radius and matching spread, and a screenshot was inspected with the right panel closed.
+
+- Changes, Terminal, and Files have opaque panel surfaces. File trees and diffs also render inside shadow roots and use the inherited `--color-surface` value. Version 0.1.63 clears these surfaces while the workspace image is active. Live screenshots show the image in a terminal, the Changes view, the file tree, and an opened file; diff highlighting remains visible.
+
+- The outline's shadow at stacking level 50 covered the navigation rail and title bar controls. Version 0.1.64 lowers it below those shell layers. A live screenshot with the right panel open shows the selected navigation icon and tab without the previous cut.
+
 ### Popover slot: 2026-11-04
 
 - The adapter positions a fixed popover stack inside the active main surface bounds, below its top edge. Modules register popovers through the core context; the controller owns their toolbar actions, shadow roots, vertical ordering, Escape handling, and cleanup. The stack scrolls when its contents exceed the available height. This uses the existing active chat and toolbar hooks; no module targets Codex selectors.

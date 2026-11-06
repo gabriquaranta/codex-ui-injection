@@ -29,6 +29,7 @@ describe("stream glitch module", () => {
       registerPopover: vi.fn(),
       registerResponseRootHandler: (handler) => { handleResponse = handler; },
       setChatBackground: vi.fn(),
+      setWorkspaceBackground: vi.fn(),
     };
     const cleanupModule = streamGlitchModule.activate(context);
     const cleanupResponse = handleResponse?.(root);

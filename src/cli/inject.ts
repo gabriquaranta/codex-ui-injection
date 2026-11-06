@@ -59,14 +59,17 @@ async function main(): Promise<void> {
     await cdp.send("Runtime.enable");
     const stored = await cdp.send<RuntimeEvaluation<boolean>>("Runtime.evaluate", {
       expression: `(async () => {
-        const data = ${JSON.stringify(__CHAT_BACKGROUND__)};
-        let image = null;
-        if (data !== null) {
+        const backgrounds = {
+          chat: ${JSON.stringify(__CHAT_BACKGROUND__)},
+          workspace: ${JSON.stringify(__WORKSPACE_BACKGROUND__)},
+        };
+        const images = Object.fromEntries(Object.entries(backgrounds).map(([key, data]) => {
+          if (data === null) return [key, null];
           const binary = atob(data.slice(data.indexOf(",") + 1));
           const bytes = new Uint8Array(binary.length);
           for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
-          image = new Blob([bytes], { type: data.slice(5, data.indexOf(";")) });
-        }
+          return [key, new Blob([bytes], { type: data.slice(5, data.indexOf(";")) })];
+        }));
         const database = await new Promise((resolve, reject) => {
           const request = indexedDB.open("codex-ui-background", 1);
           request.onupgradeneeded = () => request.result.createObjectStore("images");
@@ -75,8 +78,10 @@ async function main(): Promise<void> {
         });
         await new Promise((resolve, reject) => {
           const transaction = database.transaction("images", "readwrite");
-          if (image) transaction.objectStore("images").put(image, "chat");
-          else transaction.objectStore("images").delete("chat");
+          for (const [key, image] of Object.entries(images)) {
+            if (image) transaction.objectStore("images").put(image, key);
+            else transaction.objectStore("images").delete(key);
+          }
           transaction.oncomplete = () => resolve();
           transaction.onerror = () => reject(transaction.error);
           transaction.onabort = () => reject(transaction.error);
@@ -87,7 +92,7 @@ async function main(): Promise<void> {
       returnByValue: true,
     });
     if (stored.exceptionDetails || stored.result.value !== true) {
-      throw new Error(`Could not store chat background: ${stored.exceptionDetails?.text ?? "unknown error"}`);
+      throw new Error(`Could not store backgrounds: ${stored.exceptionDetails?.text ?? "unknown error"}`);
     }
     const installed = await cdp.send<RuntimeEvaluation<string | undefined>>("Runtime.evaluate", {
       expression: "window.__codexUiRuntime?.version",

@@ -20,6 +20,7 @@ it("runs an inherited effect and cancels it when its response closes", async () 
     document, registerPanel: vi.fn(), registerPopover: vi.fn(),
     registerResponseRootHandler: (handler) => { attach = handler; },
     setChatBackground: vi.fn(),
+    setWorkspaceBackground: vi.fn(),
   };
   const root = document.createElement("div");
   const text = document.createTextNode("");

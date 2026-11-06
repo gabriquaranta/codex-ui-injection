@@ -1,6 +1,7 @@
 import { CodexAdapter } from "../codex/adapter.js";
 import { ModuleRegistry } from "../core/module-registry.js";
 import { chatBackgroundModule } from "../modules/chat-background/index.js";
+import { workspaceBackgroundModule } from "../modules/workspace-background/index.js";
 import { activateModules } from "../core/module-lifecycle.js";
 import type { UiPanel, UiPopover } from "../core/contracts.js";
 import { emptyPopoverModule } from "../modules/empty-popover/index.js";
@@ -21,12 +22,13 @@ function startRenderer(): void {
   const legacyStyle = document.createElement("style");
   legacyStyle.dataset.codexUiLegacyCleanup = "";
   legacyStyle.textContent = "#codex-side-poc-button, #codex-side-poc-panel { display: none !important; flex: 0 0 0 !important; width: 0 !important; }";
-  const modules = ModuleRegistry.fromEnabled([emptyPanelModule, emptyPopoverModule, emptyStreamAnimationModule, chatBackgroundModule, streamGlitchModule], enabledModuleIds);
+  const modules = ModuleRegistry.fromEnabled([emptyPanelModule, emptyPopoverModule, emptyStreamAnimationModule, chatBackgroundModule, workspaceBackgroundModule, streamGlitchModule], enabledModuleIds);
   const panels: UiPanel[] = [];
   const popovers: UiPopover[] = [];
   const responseRootHandlers: Array<(root: HTMLElement) => (() => void) | void> = [];
   let adapter: CodexAdapter | undefined;
   let background: { image: Blob | null; opacity: number } | undefined;
+  let workspaceBackground: { image: Blob | null; opacity: number } | undefined;
   const cleanupModules = activateModules(modules.all(), {
     document,
     registerPanel: (panel) => panels.push(panel),
@@ -36,6 +38,10 @@ function startRenderer(): void {
       background = { image, opacity };
       adapter?.setChatBackground(image, opacity);
     },
+    setWorkspaceBackground: (image, opacity) => {
+      workspaceBackground = { image, opacity };
+      adapter?.setWorkspaceBackground(image, opacity);
+    },
   });
   document.head.append(legacyStyle);
   let activeAdapter: CodexAdapter;
@@ -43,6 +49,7 @@ function startRenderer(): void {
     activeAdapter = new CodexAdapter(document, new ModuleRegistry(panels), popovers, responseRootHandlers);
     adapter = activeAdapter;
     if (background) activeAdapter.setChatBackground(background.image, background.opacity);
+    if (workspaceBackground) activeAdapter.setWorkspaceBackground(workspaceBackground.image, workspaceBackground.opacity);
     activeAdapter.start();
   } catch (error) {
     cleanupModules();

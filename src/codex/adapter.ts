@@ -21,6 +21,7 @@ export class CodexAdapter {
   #desiredWidth = DEFAULT_DRAWER_WIDTH;
   #stopResize: (() => void) | null = null;
   #backgroundUrl: string | null = null;
+  #workspaceBackgroundUrl: string | null = null;
   #mountFrame: number | null = null;
   #disposed = false;
   readonly #responseRootHandlers: readonly ((root: HTMLElement) => (() => void) | void)[];
@@ -31,12 +32,44 @@ export class CodexAdapter {
     this.#responseRootHandlers = responseRootHandlers;
     this.#backgroundStyle = document.createElement("style");
     this.#backgroundStyle.textContent = `
+      :root[data-codex-ui-workspace-background] {
+        background-image: linear-gradient(color-mix(in srgb, var(--app-color-background-surface, Canvas) calc(100% - var(--codex-ui-workspace-background-opacity)), transparent), color-mix(in srgb, var(--app-color-background-surface, Canvas) calc(100% - var(--codex-ui-workspace-background-opacity)), transparent)), var(--codex-ui-workspace-background);
+        background-position: center; background-size: cover; background-repeat: no-repeat; background-attachment: fixed;
+      }
+      :root[data-codex-ui-workspace-background] body,
+      :root[data-codex-ui-workspace-background] [data-app-shell-page-surface="true"],
+      :root[data-codex-ui-workspace-background] [data-app-shell-main-surface="default"],
+      :root[data-codex-ui-workspace-background] [data-app-shell-tabs] [data-app-shell-compact-page-gutter]:has([data-app-shell-tab-panel-controller="right"]),
+      :root[data-codex-ui-workspace-background] [data-app-shell-tab-panel-controller="right"] {
+        background-color: transparent !important;
+      }
+      :root[data-codex-ui-workspace-background] [data-app-shell-tab-panel-controller="right"] [data-app-shell-pane-content-viewport] .bg-surface-canvas {
+        background-color: transparent !important;
+      }
+      :root[data-codex-ui-workspace-background] [data-app-shell-tab-panel-controller="right"] :is([data-app-action-review-scroll], [class~="group/file-diff"], .bg-surface, [data-codex-terminal], file-tree-container, diffs-container) {
+        background-color: transparent !important;
+      }
+      :root[data-codex-ui-workspace-background] [data-app-shell-tab-panel-controller="right"] :is(file-tree-container, diffs-container) {
+        --color-surface: transparent;
+      }
+      :root[data-codex-ui-workspace-background] :is([data-app-navigation-rail="true"], [data-app-shell-titlebar="true"]) {
+        background-color: var(--app-color-background-surface, Canvas) !important;
+      }
+      :root[data-codex-ui-workspace-background] [data-app-shell-frame="true"] {
+        box-shadow: inset -4px -4px var(--app-color-background-surface, Canvas);
+      }
+      :root[data-codex-ui-workspace-background] [data-app-shell-workspace-row]:has([data-app-navigation-rail="true"])::after {
+        content: ""; position: absolute; z-index: 1; pointer-events: none;
+        inset: var(--app-shell-titlebar-height) 0 0 var(--app-shell-navigation-rail-width);
+        border: 1px solid var(--app-color-border); border-radius: var(--radius-xl);
+        box-shadow: 0 0 0 var(--radius-xl) var(--app-color-background-surface, Canvas);
+      }
       :root[data-codex-ui-home-chat] [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) {
         background-image: linear-gradient(color-mix(in srgb, var(--app-color-background-surface, Canvas) calc(100% - var(--codex-ui-background-opacity)), transparent), color-mix(in srgb, var(--app-color-background-surface, Canvas) calc(100% - var(--codex-ui-background-opacity)), transparent)), var(--codex-ui-background);
         background-position: center; background-size: cover; background-repeat: no-repeat;
       }
-      :root[data-codex-ui-home-chat][data-codex-ui-background] [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_fade_"],
-      :root[data-codex-ui-home-chat][data-codex-ui-background] [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_surface_"] { background: transparent !important; }
+      :root[data-codex-ui-home-chat]:is([data-codex-ui-background], [data-codex-ui-workspace-background]) [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_fade_"],
+      :root[data-codex-ui-home-chat]:is([data-codex-ui-background], [data-codex-ui-workspace-background]) [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_surface_"] { background: transparent !important; }
     `;
     this.#controller = new ModuleController(document, registry, () => this.#updateDrawerGeometry(), popovers);
     const handle = document.createElement("div");
@@ -119,9 +152,13 @@ export class CodexAdapter {
     this.#backgroundStyle.remove();
     delete this.#document.documentElement.dataset.codexUiHomeChat;
     delete this.#document.documentElement.dataset.codexUiBackground;
+    delete this.#document.documentElement.dataset.codexUiWorkspaceBackground;
     if (this.#backgroundUrl) URL.revokeObjectURL(this.#backgroundUrl);
+    if (this.#workspaceBackgroundUrl) URL.revokeObjectURL(this.#workspaceBackgroundUrl);
     this.#document.documentElement.style.removeProperty("--codex-ui-background");
     this.#document.documentElement.style.removeProperty("--codex-ui-background-opacity");
+    this.#document.documentElement.style.removeProperty("--codex-ui-workspace-background");
+    this.#document.documentElement.style.removeProperty("--codex-ui-workspace-background-opacity");
     this.#document.documentElement.style.removeProperty("--codex-ui-drawer-width");
     this.#removeLegacyUi();
   }
@@ -165,6 +202,23 @@ export class CodexAdapter {
       delete this.#document.documentElement.dataset.codexUiBackground;
       style.removeProperty("--codex-ui-background");
       style.removeProperty("--codex-ui-background-opacity");
+    }
+  }
+
+  setWorkspaceBackground(image: Blob | null, opacity: number): void {
+    const root = this.#document.documentElement;
+    const style = root.style;
+    if (this.#workspaceBackgroundUrl) URL.revokeObjectURL(this.#workspaceBackgroundUrl);
+    this.#workspaceBackgroundUrl = null;
+    if (image) {
+      root.dataset.codexUiWorkspaceBackground = "";
+      this.#workspaceBackgroundUrl = URL.createObjectURL(image);
+      style.setProperty("--codex-ui-workspace-background", `url("${this.#workspaceBackgroundUrl}")`);
+      style.setProperty("--codex-ui-workspace-background-opacity", `${opacity}%`);
+    } else {
+      delete root.dataset.codexUiWorkspaceBackground;
+      style.removeProperty("--codex-ui-workspace-background");
+      style.removeProperty("--codex-ui-workspace-background-opacity");
     }
   }
 
