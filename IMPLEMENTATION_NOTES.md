@@ -174,6 +174,10 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 
 - The shell frame has 4 px of right and bottom padding in the live renderer. Version 0.1.60 colors those edges with an inset shadow; a live screenshot shows the workspace image inside the frame and the shell edges in the theme surface color.
 
+- After the app update, a live screenshot of the old chat showed a white strip along its bottom edge. The `[data-app-shell-frame="true"]` computed style still had the runtime's 4 px white inset shadow, which painted over the workspace background. Version 0.1.65 removes that shadow so the root workspace background shows through the frame padding. Type-check and build passed; the updated live renderer screenshot was checked after reinjection.
+
+- The first frame-shadow fix did not remove the white area above and below the composer. The updated chat DOM has a white gradient and solid surface inside `[data-includes-composer="true"]`; the layers have `background-* fade-*` and `background-* surface-*` classes, with the solid layer inside `[data-thread-scroll-footer]`. They no longer have `aria-hidden`, and this chat has no active-page marker, so the old Home-chat selectors do not match. Version 0.1.66 clears both layers while the workspace background is active. Live computed styles and a screenshot after reinjection confirmed both layers are transparent; live scrolling was not exercised.
+
 - Version 0.1.61 adds a rounded, one-pixel workspace outline using the shell's border color, title bar height, and navigation rail width. The outline ignores pointer events. A live screenshot shows the outline around the workspace; the right panel was closed during this check.
 
 - Version 0.1.62 paints the theme surface outside the rounded outline to cover the image at all four corners. The live renderer reports a 15 px radius and matching spread, and a screenshot was inspected with the right panel closed.

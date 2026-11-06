@@ -52,11 +52,12 @@ export class CodexAdapter {
       :root[data-codex-ui-workspace-background] [data-app-shell-tab-panel-controller="right"] :is(file-tree-container, diffs-container) {
         --color-surface: transparent;
       }
+      :root[data-codex-ui-workspace-background] [data-includes-composer="true"] [class*="background-"][class*="fade-"],
+      :root[data-codex-ui-workspace-background] [data-includes-composer="true"] [class*="background-"][class*="surface-"] {
+        background: transparent !important;
+      }
       :root[data-codex-ui-workspace-background] :is([data-app-navigation-rail="true"], [data-app-shell-titlebar="true"]) {
         background-color: var(--app-color-background-surface, Canvas) !important;
-      }
-      :root[data-codex-ui-workspace-background] [data-app-shell-frame="true"] {
-        box-shadow: inset -4px -4px var(--app-color-background-surface, Canvas);
       }
       :root[data-codex-ui-workspace-background] [data-app-shell-workspace-row]:has([data-app-navigation-rail="true"])::after {
         content: ""; position: absolute; z-index: 1; pointer-events: none;
