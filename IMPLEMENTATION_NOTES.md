@@ -4,6 +4,12 @@ This file records implementation details that took non-trivial inspection or tes
 
 ## Current library implementation
 
+### macOS launcher
+
+- `scripts/create-macos-launcher.sh` builds a small AppleScript app in `~/Applications` and places a Desktop symlink to it. The app runs `scripts/launch-codex-ui.sh`, so the workflow does not require an open Terminal window.
+- The launcher builds the current bundle, reuses a responsive localhost CDP endpoint or opens `/Applications/ChatGPT.app` with CDP bound to `127.0.0.1:9335`, then retries injection for up to 60 seconds while the renderer starts. It does not close an already running app; if that app has no CDP endpoint, the user must quit it and click the launcher again.
+- The launcher app and its shell script are specific to this macOS checkout path. Syntax and bundle creation are verified locally; launching the generated app and observing its injected UI remain unverified.
+
 The toolkit adds a toolbar action and one shared right drawer to the running ChatGPT desktop app in Codex mode. Its first static module is an empty panel. The core changes renderer DOM and CSS only; it does not call Codex tools, edit conversations, or submit messages.
 
 - `UiModule` supplies an ID and an activation function with optional cleanup. A module may register a `UiPanel`, which supplies a toolbar label/icon, drawer title, `mount(ShadowRoot)` plus optional cleanup, and optional CSS.

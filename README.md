@@ -10,6 +10,8 @@ The core manages renderer discovery, module lifecycle, and layout. Modules do no
 
 ## Run locally
 
+On macOS, run `scripts/create-macos-launcher.sh` once to add **Codex UI Launcher** to `~/Applications` and the Desktop. Open that app icon to launch ChatGPT with the localhost CDP endpoint, build the current UI bundle, and inject it. The launcher runs without a Terminal window. If ChatGPT is already open without the endpoint, quit it and click the launcher again.
+
 Start the ChatGPT desktop app in Codex mode with CDP bound to localhost:
 
 ```sh
