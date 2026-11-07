@@ -41,6 +41,14 @@ await Promise.all([
     define,
   }),
   build({
+    entryPoints: [new URL("../src/cli/music-bridge.ts", import.meta.url).pathname],
+    bundle: true,
+    platform: "node",
+    target: "node22",
+    format: "esm",
+    outfile: new URL("../dist/music-bridge.mjs", import.meta.url).pathname,
+  }),
+  build({
     entryPoints: [new URL("../src/entrypoints/renderer.ts", import.meta.url).pathname],
     bundle: true,
     platform: "browser",

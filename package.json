@@ -1,6 +1,6 @@
 {
   "name": "codex-ui-building-blocks",
-  "version": "0.1.66",
+  "version": "0.1.78",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "targets": "npm run build --silent && node dist/inject.mjs --list",
-    "inject": "npm run build --silent && node dist/inject.mjs"
+    "inject": "npm run build --silent && node dist/inject.mjs",
+    "music-bridge": "npm run build --silent && node dist/music-bridge.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

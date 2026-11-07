@@ -4,6 +4,7 @@ declare const __WORKSPACE_BACKGROUND__: string | null;
 
 interface Window {
   __codexUiForce?: boolean;
+  __codexMusicBridge?: (payload: string) => void;
   __codexUiRuntime?: {
     version: string;
     dispose(): void;

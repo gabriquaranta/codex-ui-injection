@@ -8,6 +8,7 @@ import { emptyPopoverModule } from "../modules/empty-popover/index.js";
 import { emptyPanelModule } from "../modules/empty-panel/index.js";
 import { emptyStreamAnimationModule } from "../modules/empty-stream-animation/index.js";
 import { streamGlitchModule } from "../modules/stream-glitch/index.js";
+import { appleMusicModule } from "../modules/apple-music/index.js";
 import enabledModuleIds from "../../modules.json" with { type: "json" };
 import { BUILD_VERSION } from "../shared/version.js";
 
@@ -22,7 +23,7 @@ function startRenderer(): void {
   const legacyStyle = document.createElement("style");
   legacyStyle.dataset.codexUiLegacyCleanup = "";
   legacyStyle.textContent = "#codex-side-poc-button, #codex-side-poc-panel { display: none !important; flex: 0 0 0 !important; width: 0 !important; }";
-  const modules = ModuleRegistry.fromEnabled([emptyPanelModule, emptyPopoverModule, emptyStreamAnimationModule, chatBackgroundModule, workspaceBackgroundModule, streamGlitchModule], enabledModuleIds);
+  const modules = ModuleRegistry.fromEnabled([emptyPanelModule, emptyPopoverModule, emptyStreamAnimationModule, chatBackgroundModule, workspaceBackgroundModule, streamGlitchModule, appleMusicModule], enabledModuleIds);
   const panels: UiPanel[] = [];
   const popovers: UiPopover[] = [];
   const responseRootHandlers: Array<(root: HTMLElement) => (() => void) | void> = [];

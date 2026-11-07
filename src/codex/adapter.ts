@@ -319,7 +319,7 @@ export class CodexAdapter {
         const rect = element.getBoundingClientRect();
         return rect.width > 100 && rect.height > 100
           && !element.closest('[aria-hidden="true"], [inert]')
-          && Boolean(element.querySelector('[data-app-shell-focus-area="main"][id$="-chat-panel"]'));
+          && Boolean(element.querySelector('[data-app-shell-focus-area="main"]'));
       })
       .sort((left, right) => right.getBoundingClientRect().width - left.getBoundingClientRect().width)[0];
     if (!main) return null;

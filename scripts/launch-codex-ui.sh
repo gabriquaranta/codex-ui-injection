@@ -20,6 +20,7 @@ fi
 
 for attempt in {1..60}; do
   if node dist/inject.mjs >/dev/null 2>&1; then
+    nohup node dist/music-bridge.mjs >/dev/null 2>&1 </dev/null &
     exit 0
   fi
   sleep 1

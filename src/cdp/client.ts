@@ -6,11 +6,14 @@ interface CdpMessage<T> {
   readonly id?: number;
   readonly result?: T;
   readonly error?: CdpError;
+  readonly method?: string;
+  readonly params?: unknown;
 }
 
 export class CdpClient {
   readonly #socket: WebSocket;
   readonly #pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+  readonly #eventListeners = new Map<string, Set<(params: unknown) => void>>();
   #nextId = 0;
 
   private constructor(socket: WebSocket) {
@@ -57,13 +60,29 @@ export class CdpClient {
     });
   }
 
+  /** Registers a listener for one CDP event and returns its cleanup function. */
+  onEvent(method: string, listener: (params: unknown) => void): () => void {
+    const listeners = this.#eventListeners.get(method) ?? new Set<(params: unknown) => void>();
+    listeners.add(listener);
+    this.#eventListeners.set(method, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) this.#eventListeners.delete(method);
+    };
+  }
+
   close(): void {
     this.#socket.close();
   }
 
   #handleMessage(event: MessageEvent): void {
     const message = JSON.parse(String(event.data)) as CdpMessage<unknown>;
-    if (message.id === undefined) return;
+    if (message.id === undefined) {
+      if (message.method) {
+        for (const listener of this.#eventListeners.get(message.method) ?? []) listener(message.params);
+      }
+      return;
+    }
     const pending = this.#pending.get(message.id);
     if (!pending) return;
     this.#pending.delete(message.id);

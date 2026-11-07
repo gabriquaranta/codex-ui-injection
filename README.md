@@ -1,6 +1,6 @@
 # Codex UI Building Blocks
 
-A local TypeScript toolkit for adding small, UI-only modules to the Codex desktop renderer. It provides toolbar actions, a shared right drawer, and vertically stacked popovers. Empty panel and popover modules provide examples.
+A local TypeScript toolkit for adding small, UI-only modules to the Codex desktop renderer. It provides toolbar actions, a shared right drawer, and vertically stacked popovers. Chat and workspace backgrounds are supported. A Apple Music popover controls the Music app.
 
 ![alt text](assets/pci.png)
 
@@ -10,7 +10,7 @@ The core manages renderer discovery, module lifecycle, and layout. Modules do no
 
 ## Run locally
 
-On macOS, run `scripts/create-macos-launcher.sh` once to add **Codex UI Launcher** to `~/Applications` and the Desktop. Open that app icon to launch ChatGPT with the localhost CDP endpoint, build the current UI bundle, and inject it. The launcher runs without a Terminal window. If ChatGPT is already open without the endpoint, quit it and click the launcher again.
+On macOS, run `scripts/create-macos-launcher.sh` once to add **Codex UI Launcher** to `~/Applications` and the Desktop. Open that app icon to launch ChatGPT with the localhost CDP endpoint, build the current UI bundle, inject it, and start the local Apple Music bridge. The launcher runs without a Terminal window. If ChatGPT is already open without the endpoint, quit it and click the launcher again. macOS may ask you to allow automation of Music.
 
 Start the ChatGPT desktop app in Codex mode with CDP bound to localhost:
 
@@ -31,7 +31,7 @@ npm run targets
 npm run inject -- --target <target-id>
 ```
 
-If there is exactly one main `app://` renderer, injection can select it automatically with `npm run inject`. Restarting the app clears runtime injections. Keep CDP bound to localhost; it grants control of the renderer.
+If there is exactly one main `app://` renderer, injection can select it automatically with `npm run inject`. For a manually launched app, run `npm run inject` and then `npm run music-bridge`; the bridge stays connected until the app closes. Restarting the app clears runtime injections and ends the bridge. Keep CDP bound to localhost; it grants control of the renderer.
 
 ## Add a module
 
@@ -47,6 +47,7 @@ Core supports named toolbar, right-drawer, and popover slots. Popover actions si
 - `src/codex/`: main renderer selection and toolbar/layout adapter.
 - `src/core/`: module contracts, registry, and shared drawer lifecycle.
 - `src/modules/`: statically registered feature modules.
+- `src/music/`: Apple Music bridge protocol and macOS Music app access.
 - `src/entrypoints/`: browser renderer entrypoint.
 - `src/cli/`: local injection command.
 - `tests/`: module behavior and a mock Codex layout fixture.
