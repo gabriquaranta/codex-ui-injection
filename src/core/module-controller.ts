@@ -83,7 +83,7 @@ export class ModuleController {
       :root[data-codex-ui-home-chat]:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-active-page="true"] [data-app-shell-main-surface="default"] { clip-path: none; border-start-end-radius: 0; border-end-end-radius: 0; }
       :root[data-codex-ui-home-chat]:has([data-codex-ui-drawer][data-open="true"]) [data-app-shell-titlebar-slot="content"][data-app-shell-focus-area="right-panel"] { translate: calc(-1 * var(--codex-ui-drawer-width)) 0; }
       [data-codex-ui-toolbar], [data-codex-ui-popover-toolbar] { display: contents; }
-      [data-codex-ui-popovers] { position: fixed; box-sizing: content-box; padding: 32px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; pointer-events: none; font: inherit; }
+      [data-codex-ui-popovers] { position: fixed; box-sizing: content-box; padding: 32px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; pointer-events: none; font: inherit; transition: none; }
       [data-codex-ui-popover] { flex: none; box-sizing: border-box; pointer-events: auto; color: var(--color-text-primary, CanvasText); overflow: hidden; font: inherit; }
       [data-codex-ui-action] { width: 28px; height: 28px; flex: 0 0 28px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
       [data-codex-ui-action]:hover, [data-codex-ui-action][aria-pressed="true"] { background: var(--color-background-primary-surface, rgba(127,127,127,.12)); }
@@ -160,6 +160,10 @@ export class ModuleController {
     this.popoverStack.style.zIndex = suspended ? "1" : "";
   }
 
+  get hasOpenPopovers(): boolean {
+    return this.#openPopovers.size > 0;
+  }
+
   #togglePopover(popover: UiPopover): void {
     if (this.#openPopovers.has(popover.id)) {
       this.#closePopover(popover.id);
@@ -179,6 +183,7 @@ export class ModuleController {
     const button = this.#popoverButtons.get(popover.id)!;
     button.setAttribute("aria-expanded", "true");
     button.setAttribute("aria-pressed", "true");
+    this.#onStateChange();
   }
 
   #closePopover(id: string): void {
@@ -190,6 +195,7 @@ export class ModuleController {
     const button = this.#popoverButtons.get(id)!;
     button.setAttribute("aria-expanded", "false");
     button.setAttribute("aria-pressed", "false");
+    this.#onStateChange();
   }
 
   #addToolbarButton(module: UiPanel): void {

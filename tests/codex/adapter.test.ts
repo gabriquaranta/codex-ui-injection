@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CodexAdapter } from "../../src/codex/adapter.js";
 import { ModuleRegistry } from "../../src/core/module-registry.js";
 import { emptyPanel } from "../../src/modules/empty-panel/index.js";
+import { emptyPopoverModule } from "../../src/modules/empty-popover/index.js";
+import type { UiPopover } from "../../src/core/contracts.js";
 
 const fixture = readFileSync("tests/fixtures/codex.html", "utf8");
 
@@ -62,14 +64,18 @@ describe("CodexAdapter", () => {
     document.querySelector('[data-app-shell-active-page="true"]')!.append(summary);
     await new Promise((resolve) => setTimeout(resolve, 30));
     action.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
     const stack = document.querySelector<HTMLElement>("[data-codex-ui-popovers]")!;
+    expect(document.querySelector("[data-codex-ui-popover-space]")).toBeNull();
     expect(stack.style.top).toBe("344px");
-    expect(stack.style.right).toBe("-12px");
+    expect(stack.style.left).toBe("1260px");
+    expect(stack.style.right).toBe("auto");
     expect(stack.style.width).toBe("300px");
     summary.getBoundingClientRect = () => rect(1500, 52, 300, 316);
     window.dispatchEvent(new Event("resize"));
     await new Promise((resolve) => setTimeout(resolve, 30));
-    expect(stack.style.right).toBe("-24px");
+    expect(stack.style.left).toBe("1260px");
+    expect(stack.style.right).toBe("auto");
     summary.getBoundingClientRect = () => rect(980, 52, 240, 200);
     window.dispatchEvent(new Event("resize"));
     await new Promise((resolve) => setTimeout(resolve, 30));
@@ -80,6 +86,68 @@ describe("CodexAdapter", () => {
     expect(stack.children).toHaveLength(1);
     expect(action.getAttribute("aria-expanded")).toBe("true");
     expect(stack.style.top).toBe("20px");
+    adapter.dispose();
+  });
+
+  it("shifts the transcript while Music is open without adding a column", async () => {
+    const popover = {
+      id: "music",
+      toolbarLabel: "Music",
+      createIcon: (document: Document) => document.createElementNS("http://www.w3.org/2000/svg", "svg"),
+      mount: () => {},
+    };
+    const chat = document.createElement("div");
+    chat.className = "group/thread-scroll-layout";
+    document.querySelector('[data-app-shell-active-page="true"]')!.append(chat);
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]), [popover]);
+    adapter.start();
+    const button = document.querySelector<HTMLButtonElement>('[data-codex-ui-action="music"]')!;
+    button.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const stack = document.querySelector<HTMLElement>("[data-codex-ui-popovers]")!;
+    expect(chat.hasAttribute("data-codex-ui-shift-chat")).toBe(true);
+    expect(document.querySelector("[data-codex-ui-popover-space]")).toBeNull();
+    expect(stack.style.left).toBe("1260px");
+    button.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(chat.hasAttribute("data-codex-ui-shift-chat")).toBe(false);
+    adapter.dispose();
+  });
+
+  it("keeps the shared transcript shift until all popovers close", async () => {
+    const popovers: UiPopover[] = [];
+    emptyPopoverModule.activate({
+      document,
+      registerPopover: (popover) => popovers.push(popover),
+      registerPanel: vi.fn(),
+      registerResponseRootHandler: vi.fn(),
+      setChatBackground: vi.fn(),
+      setWorkspaceBackground: vi.fn(),
+    });
+    popovers.push({
+      id: "second-popover",
+      toolbarLabel: "Second popover",
+      createIcon: (doc) => doc.createElementNS("http://www.w3.org/2000/svg", "svg"),
+      mount: () => {},
+    });
+    const chat = document.createElement("div");
+    chat.className = "group/thread-scroll-layout";
+    document.querySelector('[data-app-shell-active-page="true"]')!.append(chat);
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]), popovers);
+    adapter.start();
+    const first = document.querySelector<HTMLButtonElement>('[data-codex-ui-action="empty-popover"]')!;
+    const second = document.querySelector<HTMLButtonElement>('[data-codex-ui-action="second-popover"]')!;
+    first.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(chat.hasAttribute("data-codex-ui-shift-chat")).toBe(true);
+    expect(document.querySelector('[data-codex-ui-popover="empty-popover"]')).not.toBeNull();
+    second.click();
+    first.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(chat.hasAttribute("data-codex-ui-shift-chat")).toBe(true);
+    second.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(chat.hasAttribute("data-codex-ui-shift-chat")).toBe(false);
     adapter.dispose();
   });
 

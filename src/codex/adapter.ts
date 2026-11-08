@@ -32,6 +32,7 @@ export class CodexAdapter {
     this.#responseRootHandlers = responseRootHandlers;
     this.#backgroundStyle = document.createElement("style");
     this.#backgroundStyle.textContent = `
+      [data-codex-ui-shift-chat] { --thread-content-x: -154px !important; }
       :root[data-codex-ui-workspace-background] {
         background-image: linear-gradient(color-mix(in srgb, var(--app-color-background-surface, Canvas) calc(100% - var(--codex-ui-workspace-background-opacity)), transparent), color-mix(in srgb, var(--app-color-background-surface, Canvas) calc(100% - var(--codex-ui-workspace-background-opacity)), transparent)), var(--codex-ui-workspace-background);
         background-position: center; background-size: cover; background-repeat: no-repeat; background-attachment: fixed;
@@ -72,7 +73,10 @@ export class CodexAdapter {
       :root[data-codex-ui-home-chat]:is([data-codex-ui-background], [data-codex-ui-workspace-background]) [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_fade_"],
       :root[data-codex-ui-home-chat]:is([data-codex-ui-background], [data-codex-ui-workspace-background]) [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_surface_"] { background: transparent !important; }
     `;
-    this.#controller = new ModuleController(document, registry, () => this.#updateDrawerGeometry(), popovers);
+    this.#controller = new ModuleController(document, registry, () => {
+      this.#updateDrawerGeometry();
+      this.#scheduleMount();
+    }, popovers);
     const handle = document.createElement("div");
     handle.dataset.codexUiResize = "";
     handle.setAttribute("role", "separator");
@@ -136,6 +140,7 @@ export class CodexAdapter {
     this.#observer.observe(this.#document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-current", "aria-modal", "aria-hidden", "aria-pressed", "role", "inert", "data-app-shell-active-page"] });
     this.#syncResponseRoots();
     this.#document.defaultView?.addEventListener("resize", this.#resizeHandler);
+    this.#document.addEventListener("transitionend", this.#resizeHandler, true);
   }
 
   dispose(): void {
@@ -149,6 +154,8 @@ export class CodexAdapter {
     this.#resizeObserver.disconnect();
     this.#observedTargets = [];
     this.#document.defaultView?.removeEventListener("resize", this.#resizeHandler);
+    this.#document.removeEventListener("transitionend", this.#resizeHandler, true);
+    this.#document.querySelectorAll("[data-codex-ui-shift-chat]").forEach((element) => element.removeAttribute("data-codex-ui-shift-chat"));
     this.#controller.dispose();
     this.#backgroundStyle.remove();
     delete this.#document.documentElement.dataset.codexUiHomeChat;
@@ -230,6 +237,7 @@ export class CodexAdapter {
       .some((element) => element.getBoundingClientRect().width > 0);
     this.#controller.setPopoversSuspended(modal);
     if (modal) {
+      this.#document.querySelectorAll("[data-codex-ui-shift-chat]").forEach((element) => element.removeAttribute("data-codex-ui-shift-chat"));
       this.#controller.close();
       this.#controller.popoverToolbarRoot.remove();
       this.#controller.toolbarRoot.remove();
@@ -246,6 +254,7 @@ export class CodexAdapter {
       .find((button) => button.getBoundingClientRect().width > 0 && !button.closest('[aria-hidden="true"], [inert]'));
     const toolbarSlot = anchor && this.#findToolbarSlot(anchor);
     if (!anchor || !toolbarSlot || !layout) {
+      this.#document.querySelectorAll("[data-codex-ui-shift-chat]").forEach((element) => element.removeAttribute("data-codex-ui-shift-chat"));
       this.#controller.close();
       this.#controller.closePopovers();
       this.#controller.popoverStack.remove();
@@ -282,7 +291,16 @@ export class CodexAdapter {
         && Boolean(this.#controller.drawer.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING))) {
       layout.element.append(this.#controller.drawer);
     }
-    if (!this.#controller.popoverStack.isConnected) this.#document.body.append(this.#controller.popoverStack);
+    const chatLayout = activePage?.querySelector<HTMLElement>('[class~="group/thread-scroll-layout"]');
+    this.#document.querySelectorAll("[data-codex-ui-shift-chat]").forEach((element) => {
+      if (element !== chatLayout || !this.#controller.hasOpenPopovers || summaryButton?.getAttribute("aria-pressed") === "true") {
+        element.removeAttribute("data-codex-ui-shift-chat");
+      }
+    });
+    if (chatLayout && this.#controller.hasOpenPopovers && summaryButton?.getAttribute("aria-pressed") !== "true") {
+      chatLayout.dataset.codexUiShiftChat = "";
+    }
+    if (this.#controller.popoverStack.parentElement !== this.#document.body) this.#document.body.append(this.#controller.popoverStack);
     const mainRect = layout.main.getBoundingClientRect();
     const stack = this.#controller.popoverStack;
     const summary = activePage?.querySelector<HTMLElement>('[data-summary-panel-variant="summary"]');
@@ -292,7 +310,13 @@ export class CodexAdapter {
       && summaryRect.left < mainRect.right && summaryRect.right > mainRect.left ? summaryRect : null;
     stack.style.top = `${(visibleSummary ? visibleSummary.bottom + 8 : mainRect.top + 8) - POPOVER_SHADOW_SPACE}px`;
     stack.style.width = `${Math.max(0, Math.min(visibleSummary?.width ?? 300, mainRect.width - 16))}px`;
-    stack.style.right = `${(this.#document.defaultView?.innerWidth ?? mainRect.right) - Math.min(visibleSummary?.right ?? mainRect.right - 8, mainRect.right - 8) - POPOVER_SHADOW_SPACE}px`;
+    if (this.#controller.hasOpenPopovers) {
+      stack.style.left = `${mainRect.right - 8 - (visibleSummary?.width ?? 300) - POPOVER_SHADOW_SPACE}px`;
+      stack.style.right = "auto";
+    } else {
+      stack.style.left = "";
+      stack.style.right = `${(this.#document.defaultView?.innerWidth ?? mainRect.right) - Math.min(visibleSummary?.right ?? mainRect.right - 8, mainRect.right - 8) - POPOVER_SHADOW_SPACE}px`;
+    }
     stack.style.bottom = `${Math.max(16, (this.#document.defaultView?.innerHeight ?? mainRect.bottom) - mainRect.bottom + 16) - POPOVER_SHADOW_SPACE}px`;
     this.#observeTargets([toolbarSlot, layout.element, layout.main, ...(visibleSummary && summary ? [summary] : [])]);
     this.#updateDrawerGeometry();
