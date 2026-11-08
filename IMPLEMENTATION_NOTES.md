@@ -197,6 +197,10 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 - The adapter positions a fixed popover stack inside the active main surface bounds, below its top edge. Modules register popovers through the core context; the controller owns their toolbar actions, shadow roots, vertical ordering, Escape handling, and cleanup. The stack scrolls when its contents exceed the available height. This uses the existing active chat and toolbar hooks; no module targets Codex selectors.
 - Live injection of version 0.1.30 showed the empty popover at 360 by 74 px with a white surface and 12 px corners. Its toolbar action opened and closed it, and the rendered card was visually inspected. A controller test covers two open popovers and independent cleanup; multiple popovers and scrolling were not checked live.
 
+### Fixed-size popover overlay: 2026-11-08
+
+- The alignment-only change did not move the 300 px Music card because it matched the stack width. Version 0.1.83 adds a 340 px flex spacer after the active page while a popover is open: 300 px for the card, an 8 px gap, and 32 px of shadow padding. The workspace row narrows the chat, and the fixed stack sits in the reserved column. The fixture checks spacer order, width, stack anchor, and removal on close. Live CDP inspection measured the active chat at 1525 px wide before opening and 1185 px after; the card began 8 px beyond the chat edge. Closing Music restored the original width and removed the spacer. A live screenshot confirmed the placement.
+
 ### Native summary alignment: 2026-11-04
 
 - Live renderer inspection found the summary button at `data-thread-summary-panel-toggle="true"` and its card at `data-summary-panel-variant="summary"` within the active page. The closed card can remain in the DOM off screen, so the adapter checks the button's `aria-pressed` state and the card bounds. Popover actions mount immediately before the summary button; open injected cards use the native card width and align 8 px below it. Resize and mutation observers update the geometry.
@@ -252,3 +256,31 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 - The one-shot injector cannot receive renderer requests after it exits. The helper therefore owns the CDP connection and Apple Events calls. A live `Runtime.addBinding` probe proved renderer-to-host delivery before implementation; end-to-end control and artwork are now verified against the open Music app. CDP remains a high-privilege, unsupported third-party Chromium interface, so the helper selects only the main target and connects only to localhost port 9335.
 - The live renderer reports the main frame as `app://-/index.html?initialRoute=...`, with a default context and a separate Electron isolated context. Repeated launcher runs left one bridge process; a second direct bridge start while it was running exited with `Music bridge is already running.` A live CDP check found the binding in the default context and `undefined` in a separately created isolated world. UI access was blocked during this verification, so playback through the updated context-scoped bridge was not re-tested in that final pass.
 - Apple Music web playback remains an alternative player, not a control path for the installed Music app's current queue. MusicKit web setup, authorization, and licensing are not part of this feature. Sources checked: [MusicKit on the Web](https://developer.apple.com/musickit/web/), [Apple Music API](https://developer.apple.com/documentation/AppleMusicAPI), and [developer token requirements](https://developer.apple.com/documentation/AppleMusicAPI/generating-developer-tokens). Apple documents Automation permission settings at [Allow apps to automate and control other apps](https://support.apple.com/en-hk/guide/mac-help/mchl108e1718/mac).
+
+### Music artwork and summary alignment: 2026-11-08
+
+- Music returned its artwork format as `«class PNG »`; the bridge now recognizes this AppleScript format. In version 0.1.84, the live renderer loaded the current artwork as an 800 px PNG.
+- When the native summary is open, the popover stack uses its left edge. Live renderer bounds placed the summary at x=1252, y=52..294 and Music at x=1252, y=302..602. The 8 px vertical gap and horizontal alignment were verified in the active renderer.
+
+### Shared popover space: 2026-11-08
+
+- The native summary already reserves space for its column. Keeping the Music spacer while the summary was open created a second column and separated the cards. Version 0.1.85 removes the spacer while the summary button is pressed and restores it when the summary closes. The stack also avoids inherited transitions and updates after native transitions finish.
+- Live CDP checks opened Music, opened the summary, and closed the summary. With both open, the cards had the same x coordinate (1592 px), an 8 px vertical gap, and no extra spacer. Music alone restored the spacer. Tests and type-check passed.
+
+### Transcript shift without a separate column: 2026-11-08
+
+- Live inspection showed that the native summary keeps the main surface width and sets `--thread-content-x` to `-154px` on `group/thread-scroll-layout` for its 308 px wide floating area. Version 0.1.87 removes the extra flex spacer, uses that same shift while Music alone is open, and anchors Music at the native summary's 8 px right inset. The app controls the shift when its summary is open.
+- Live CDP checks opened Music, opened and closed the summary, then closed Music. Music stayed at x=1592 throughout; with the summary open its x was also 1592 and the vertical gap was 8 px. The transcript shift was -154 px while open and cleared on close. No spacer was present. Tests and type-check passed. The native class and custom property are private app hooks.
+- The transcript shift and stack position belong to the shared adapter and apply to every registered popover. A fixture using the empty popover confirms the shift starts when it opens, remains while another popover is open, and clears when the last one closes. The empty module is disabled in the current modules.json, so this check did not exercise it in the live app.
+
+### Preserve Music across chat navigation: 2026-11-08
+
+- The adapter closed all popovers when the active chat had no native summary button. Version 0.1.88 keeps the open popover mounted and maintains the shared transcript shift when that button is absent; the per-chat toolbar action is removed until available again. An adapter test removes the summary button while Music is open and confirms that the card and shift remain. The runtime was injected; chat navigation in the live app remains unverified.
+
+### Empty chat toolbar fallback: 2026-11-08
+
+- Live navigation confirmed Music closed when a new empty chat had no summary action or chat toolbar anchor. Version 0.1.89 retains the popover when the active home layout still exists but those chat controls do not. It applies the shared transcript shift and positions the stack from the main surface. The fixture removes both controls while Music is open and confirms the card and shift remain. The runtime was injected; a second live navigation pass after this fix remains unverified.
+
+### Music toolbar on an empty chat: 2026-11-08
+
+- Empty chats may not expose the chat-specific `Chat actions` button. Version 0.1.90 falls back to the visible end toolbar slot, so the registered Music action remains available there. Live navigation confirmed the Music button at x=1864 in a new chat, and confirmed its open card remained mounted after returning to an existing chat. Adapter tests, all 34 tests, type-check, and diff check passed.

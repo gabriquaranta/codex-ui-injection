@@ -98,7 +98,7 @@ export async function readCurrentArtwork(expectedTrackId: string): Promise<strin
       timeout: 8_000,
       maxBuffer: 1_024 * 1_024,
     });
-    const format = stdout.trim().toLowerCase().replace(/\s+picture$/, "");
+    const format = stdout.trim().toLowerCase().replace(/^«class\s+|\s*»$/g, "").trim().replace(/\s+picture$/, "");
     const mimeType = format === "jpeg" || format === "jpg" ? "image/jpeg"
       : format === "png" ? "image/png"
         : format === "gif" ? "image/gif"
