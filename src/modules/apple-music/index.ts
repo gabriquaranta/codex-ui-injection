@@ -52,7 +52,7 @@ const appleMusicPopover: UiPopover = {
   toolbarLabel: "Apple Music",
   createIcon,
   styles: `
-    :host { display: block; box-sizing: border-box; width: min(300px, var(--codex-ui-popover-width, 300px)); height: min(300px, var(--codex-ui-popover-width, 300px)); overflow: hidden; border: 0 !important; border-radius: 12px !important; background: transparent !important; box-shadow: none !important; }
+    :host { display: block; box-sizing: border-box; width: min(300px, var(--codex-ui-popover-width, 300px)); height: min(300px, var(--codex-ui-popover-width, 300px)); overflow: hidden; border: 0 !important; border-radius: 12px !important; background: transparent !important; }
     .music-card { box-sizing: border-box; position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 12px; background: #202020; isolation: isolate; }
     .music-card::after { content: ""; position: absolute; z-index: 1; inset: 30% 0 0; opacity: 0; pointer-events: none; background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, .18) 28%, rgba(0, 0, 0, .78) 100%); transition: opacity 140ms ease; }
     .music-card:hover::after, .music-card:focus-within::after { opacity: 1; }
@@ -79,15 +79,7 @@ const appleMusicPopover: UiPopover = {
     .status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   `,
   mount(root) {
-    // This full-bleed card should not inherit the shared popover frame.
-    root.host.classList.remove(
-      "rounded-2xl",
-      "extension:border",
-      "extension:border-default",
-      "extension:shadow-md",
-      "bg-surface-elevated-secondary",
-      "electron:elevation-prominent",
-    );
+    root.host.classList.remove("extension:border", "extension:border-default", "bg-surface-elevated-secondary");
     const document = root.ownerDocument;
     const card = document.createElement("section");
     card.className = "music-card";

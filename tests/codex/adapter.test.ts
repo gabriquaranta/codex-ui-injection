@@ -153,7 +153,7 @@ describe("CodexAdapter", () => {
     expect(stack.style.left).toBe("660px");
     expect(stack.style.width).toBe("300px");
     expect(stack.parentElement).toBe(popoverHost);
-    expect(getComputedStyle(stack).zIndex).toBe("10");
+    expect(getComputedStyle(stack).zIndex).toBe("30");
     expect(chat.hasAttribute("data-codex-ui-shift-chat")).toBe(true);
     summaryButton.setAttribute("aria-pressed", "true");
     await new Promise((resolve) => setTimeout(resolve, 30));
