@@ -79,6 +79,15 @@ const appleMusicPopover: UiPopover = {
     .status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   `,
   mount(root) {
+    // This full-bleed card should not inherit the shared popover frame.
+    root.host.classList.remove(
+      "rounded-2xl",
+      "extension:border",
+      "extension:border-default",
+      "extension:shadow-md",
+      "bg-surface-elevated-secondary",
+      "electron:elevation-prominent",
+    );
     const document = root.ownerDocument;
     const card = document.createElement("section");
     card.className = "music-card";
