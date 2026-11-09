@@ -12,12 +12,14 @@ interface CdpMessage<T> {
 
 export class CdpClient {
   readonly #socket: WebSocket;
+  readonly closed: Promise<void>;
   readonly #pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   readonly #eventListeners = new Map<string, Set<(params: unknown) => void>>();
   #nextId = 0;
 
   private constructor(socket: WebSocket) {
     this.#socket = socket;
+    this.closed = new Promise((resolve) => socket.addEventListener("close", () => resolve(), { once: true }));
     socket.addEventListener("message", (event) => this.#handleMessage(event));
     socket.addEventListener("error", () => this.#rejectPending(new Error("CDP WebSocket error.")));
     socket.addEventListener("close", () => this.#rejectPending(new Error("CDP WebSocket closed.")));
@@ -26,7 +28,10 @@ export class CdpClient {
   static async connect(url: URL): Promise<CdpClient> {
     const socket = new WebSocket(url);
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Timed out connecting to CDP.")), 10_000);
+      const timer = setTimeout(() => {
+        socket.close();
+        reject(new Error("Timed out connecting to CDP."));
+      }, 10_000);
       socket.addEventListener("open", () => {
         clearTimeout(timer);
         resolve();

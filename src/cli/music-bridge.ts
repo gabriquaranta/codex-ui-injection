@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { CdpClient } from "../cdp/client.js";
 import { CDP_ENDPOINT, discoverTargets, findMainTarget } from "../cdp/discovery.js";
 import { isMainCodexTarget } from "../codex/target.js";
+import { processMusicRequest } from "../music/bridge-request.js";
 import { parseMusicRequest, type MusicRequest, type MusicResponse } from "../music/protocol.js";
 import { readCurrentArtwork, readMusicState, runMusicAction } from "../music/player.js";
 
@@ -24,6 +25,8 @@ interface ExecutionContextCreatedEvent {
 interface FrameNavigatedEvent {
   readonly frame?: { readonly id?: string; readonly url?: string };
 }
+
+let activeCdp: CdpClient | undefined;
 
 async function main(): Promise<void> {
   const lockPath = join(tmpdir(), `codex-music-bridge-${process.getuid?.() ?? "user"}.lock`);
@@ -59,6 +62,27 @@ async function main(): Promise<void> {
   };
   process.once("exit", releaseLock);
 
+  let stopping = false;
+  const stop = () => {
+    stopping = true;
+    activeCdp?.close();
+    releaseLock();
+  };
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
+
+  while (!stopping) {
+    try {
+      await runBridgeConnection();
+      if (!stopping) process.stderr.write("Music bridge CDP connection closed; retrying.\n");
+    } catch (error: unknown) {
+      if (!stopping) process.stderr.write(`Music bridge connection failed: ${error instanceof Error ? error.message : String(error)}\n`);
+    }
+    if (!stopping) await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+}
+
+async function runBridgeConnection(): Promise<void> {
   if (new URL(CDP_ENDPOINT).hostname !== "127.0.0.1") throw new Error("The Music bridge requires the localhost CDP endpoint.");
   const targets = await discoverTargets();
   const target = findMainTarget(targets);
@@ -71,69 +95,81 @@ async function main(): Promise<void> {
   }
 
   const cdp = await CdpClient.connect(clientUrl);
-  await cdp.send("Page.enable");
-  const frameTree = await cdp.send<{ frameTree: { frame: { id: string; url: string } } }>("Page.getFrameTree");
-  const mainFrameId = frameTree.frameTree.frame.id;
-  let trustedFrame = isTrustedRendererUrl(frameTree.frameTree.frame.url);
-  if (!trustedFrame) throw new Error("The main app frame is not the trusted Codex renderer.");
-
+  activeCdp = cdp;
+  let unlistenContext = () => {};
+  let unlistenDestroyed = () => {};
+  let unlistenFrame = () => {};
+  let unlisten = () => {};
   let trustedContextId: number | undefined;
-  let bindingError: Error | undefined;
-  let resolveBinding!: () => void;
-  let rejectBinding!: (error: Error) => void;
-  const bindingReady = new Promise<void>((resolve, reject) => {
-    resolveBinding = resolve;
-    rejectBinding = reject;
-  });
-  const unlistenContext = cdp.onEvent("Runtime.executionContextCreated", (params) => {
-    const context = (params as ExecutionContextCreatedEvent | undefined)?.context;
-    if (!trustedFrame || !context || context.auxData?.frameId !== mainFrameId || context.auxData.isDefault !== true || !Number.isInteger(context.id)) return;
-    const contextId = context.id!;
-    void cdp.send("Runtime.addBinding", { name: "__codexMusicBridge", executionContextId: contextId }).then(() => {
-      if (!trustedFrame) return;
-      trustedContextId = contextId;
-      resolveBinding();
-    }).catch((error: unknown) => {
-      bindingError = error instanceof Error ? error : new Error("Could not bind the trusted renderer context.");
-      rejectBinding(bindingError);
+  try {
+    await cdp.send("Page.enable");
+    const frameTree = await cdp.send<{ frameTree: { frame: { id: string; url: string } } }>("Page.getFrameTree");
+    const mainFrameId = frameTree.frameTree.frame.id;
+    let trustedFrame = isTrustedRendererUrl(frameTree.frameTree.frame.url);
+    if (!trustedFrame) throw new Error("The main app frame is not the trusted Codex renderer.");
+
+    let bindingError: Error | undefined;
+    let resolveBinding!: () => void;
+    let rejectBinding!: (error: Error) => void;
+    const bindingReady = new Promise<void>((resolve, reject) => {
+      resolveBinding = resolve;
+      rejectBinding = reject;
     });
-  });
-  const unlistenDestroyed = cdp.onEvent("Runtime.executionContextDestroyed", (params) => {
-    const contextId = (params as { executionContextId?: number } | undefined)?.executionContextId;
-    if (contextId === trustedContextId) trustedContextId = undefined;
-  });
-  const unlistenFrame = cdp.onEvent("Page.frameNavigated", (params) => {
-    const frame = (params as FrameNavigatedEvent | undefined)?.frame;
-    if (frame?.id !== mainFrameId) return;
-    trustedFrame = isTrustedRendererUrl(frame.url ?? "");
-    trustedContextId = undefined;
-  });
-  await cdp.send("Runtime.enable");
-  await Promise.race([
-    bindingReady,
-    new Promise<never>((_, reject) => setTimeout(() => reject(bindingError ?? new Error("Timed out binding the trusted renderer context.")), 5_000)),
-  ]);
-  let inFlight = 0;
-  const unlisten = cdp.onEvent("Runtime.bindingCalled", (params) => {
-    const event = params as BindingCalledEvent | undefined;
-    process.stdout.write(`Binding context ${event?.executionContextId}; trusted ${trustedContextId}.\n`);
-    if (!event || event.name !== "__codexMusicBridge" || event.executionContextId !== trustedContextId || inFlight >= 4) return;
-    const request = parseMusicRequest(event.payload);
-    if (!request) return;
-    inFlight += 1;
-    void handleRequest(request).then((response) => dispatchResponse(event.executionContextId, response)).catch((error: unknown) => {
-      const response: MusicResponse = {
-        requestId: request.requestId,
-        ok: false,
-        error: error instanceof Error ? error.message : "Music request failed.",
-      };
-      return dispatchResponse(event.executionContextId, response);
-    }).finally(() => {
-      inFlight -= 1;
+    unlistenContext = cdp.onEvent("Runtime.executionContextCreated", (params) => {
+      const context = (params as ExecutionContextCreatedEvent | undefined)?.context;
+      if (!trustedFrame || !context || context.auxData?.frameId !== mainFrameId || context.auxData.isDefault !== true || !Number.isInteger(context.id)) return;
+      const contextId = context.id!;
+      void cdp.send("Runtime.addBinding", { name: "__codexMusicBridge", executionContextId: contextId }).then(() => {
+        if (!trustedFrame) return;
+        trustedContextId = contextId;
+        resolveBinding();
+      }).catch((error: unknown) => {
+        bindingError = error instanceof Error ? error : new Error("Could not bind the trusted renderer context.");
+        rejectBinding(bindingError);
+      });
     });
-  });
-  cdp.onEvent("Inspector.detached", () => cdp.close());
-  process.stdout.write(`Music bridge connected to ${target.url}.\n`);
+    unlistenDestroyed = cdp.onEvent("Runtime.executionContextDestroyed", (params) => {
+      const contextId = (params as { executionContextId?: number } | undefined)?.executionContextId;
+      if (contextId === trustedContextId) trustedContextId = undefined;
+    });
+    unlistenFrame = cdp.onEvent("Page.frameNavigated", (params) => {
+      const frame = (params as FrameNavigatedEvent | undefined)?.frame;
+      if (frame?.id !== mainFrameId) return;
+      trustedFrame = isTrustedRendererUrl(frame.url ?? "");
+      trustedContextId = undefined;
+    });
+    await cdp.send("Runtime.enable");
+    await Promise.race([
+      bindingReady,
+      new Promise<never>((_, reject) => setTimeout(() => reject(bindingError ?? new Error("Timed out binding the trusted renderer context.")), 5_000)),
+    ]);
+    let inFlight = 0;
+    unlisten = cdp.onEvent("Runtime.bindingCalled", (params) => {
+      const event = params as BindingCalledEvent | undefined;
+      process.stdout.write(`Binding context ${event?.executionContextId}; trusted ${trustedContextId}.\n`);
+      if (!event || event.name !== "__codexMusicBridge" || event.executionContextId !== trustedContextId || inFlight >= 4) return;
+      const request = parseMusicRequest(event.payload);
+      if (!request) return;
+      inFlight += 1;
+      void processMusicRequest(
+        request,
+        handleRequest,
+        (response) => dispatchResponse(event.executionContextId, response),
+      ).finally(() => {
+        inFlight -= 1;
+      });
+    });
+    cdp.onEvent("Inspector.detached", () => cdp.close());
+    process.stdout.write(`Music bridge connected to ${target.url}.\n`);
+    await cdp.closed;
+  } finally {
+    unlisten();
+    unlistenContext();
+    unlistenDestroyed();
+    unlistenFrame();
+    cdp.close();
+    activeCdp = undefined;
+  }
 
   async function handleRequest(request: MusicRequest): Promise<MusicResponse> {
     if (request.action === "state") {
@@ -157,22 +193,6 @@ async function main(): Promise<void> {
     await cdp.send("Runtime.evaluate", { expression, contextId, returnByValue: true });
   }
 
-  process.once("SIGINT", () => {
-    unlisten();
-    unlistenContext();
-    unlistenDestroyed();
-    unlistenFrame();
-    cdp.close();
-    releaseLock();
-  });
-  process.once("SIGTERM", () => {
-    unlisten();
-    unlistenContext();
-    unlistenDestroyed();
-    unlistenFrame();
-    cdp.close();
-    releaseLock();
-  });
 }
 
 function isTrustedRendererUrl(value: string): boolean {
