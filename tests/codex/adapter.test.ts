@@ -98,6 +98,7 @@ describe("CodexAdapter", () => {
     };
     const chat = document.createElement("div");
     chat.className = "group/thread-scroll-layout";
+    chat.getBoundingClientRect = () => rect(220, 44, 1380, 956);
     document.querySelector('[data-app-shell-active-page="true"]')!.append(chat);
     const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]), [popover]);
     adapter.start();
@@ -111,6 +112,76 @@ describe("CodexAdapter", () => {
     button.click();
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(chat.hasAttribute("data-codex-ui-shift-chat")).toBe(false);
+    adapter.dispose();
+  });
+
+  it("keeps the popover inside chat when the Plan panel is open", async () => {
+    const popover: UiPopover = {
+      id: "music",
+      toolbarLabel: "Music",
+      createIcon: (doc) => doc.createElementNS("http://www.w3.org/2000/svg", "svg"),
+      mount: () => {},
+    };
+    const chat = document.createElement("div");
+    chat.className = "group/thread-scroll-layout";
+    chat.getBoundingClientRect = () => rect(220, 44, 780, 956);
+    const popoverHost = document.createElement("div");
+    const summary = document.createElement("div");
+    summary.dataset.summaryPanelVariant = "summary";
+    summary.getBoundingClientRect = () => rect(680, 52, 300, 200);
+    const chatPanel = document.createElement("div");
+    chatPanel.id = "fixture-chat-panel";
+    chatPanel.dataset.appShellFocusArea = "main";
+    const summaryButton = document.querySelector<HTMLButtonElement>('[data-thread-summary-panel-toggle="true"]')!;
+    summaryButton.setAttribute("aria-pressed", "false");
+    chatPanel.append(summaryButton);
+    popoverHost.append(chat, summary, chatPanel);
+    document.querySelector("main")!.append(popoverHost);
+    const plan = document.createElement("section");
+    plan.setAttribute("data-app-shell-tab-panel-controller", "right");
+    plan.setAttribute("data-tab-id", "plan");
+    plan.getBoundingClientRect = () => rect(1000, 44, 600, 956);
+    const activePage = document.querySelector('[data-app-shell-active-page="true"]')!;
+    activePage.append(plan);
+
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]), [popover]);
+    adapter.start();
+    document.querySelector<HTMLButtonElement>('[data-codex-ui-action="music"]')!.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const stack = document.querySelector<HTMLElement>("[data-codex-ui-popovers]")!;
+    expect(stack.style.left).toBe("660px");
+    expect(stack.style.width).toBe("300px");
+    expect(stack.parentElement).toBe(popoverHost);
+    expect(getComputedStyle(stack).zIndex).toBe("10");
+    expect(chat.hasAttribute("data-codex-ui-shift-chat")).toBe(true);
+    summaryButton.setAttribute("aria-pressed", "true");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(stack.style.top).toBe("228px");
+    adapter.dispose();
+  });
+
+  it("positions the popover from its actual width in a narrow chat", async () => {
+    const popover: UiPopover = {
+      id: "music",
+      toolbarLabel: "Music",
+      createIcon: (doc) => doc.createElementNS("http://www.w3.org/2000/svg", "svg"),
+      mount: () => {},
+    };
+    const chat = document.createElement("div");
+    chat.className = "group/thread-scroll-layout";
+    chat.getBoundingClientRect = () => rect(220, 44, 280, 956);
+    document.querySelector('[data-app-shell-active-page="true"]')!.append(chat);
+
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]), [popover]);
+    adapter.start();
+    document.querySelector<HTMLButtonElement>('[data-codex-ui-action="music"]')!.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const stack = document.querySelector<HTMLElement>("[data-codex-ui-popovers]")!;
+    expect(stack.style.width).toBe("264px");
+    expect(stack.style.left).toBe("196px");
+    expect(stack.style.getPropertyValue("--codex-ui-popover-width")).toBe("264px");
     adapter.dispose();
   });
 

@@ -122,7 +122,10 @@ export class CodexAdapter {
       if (relevant.some((record) => record.type === "attributes"
         || !(record.target instanceof Element)
         || !record.target.closest('[data-markdown-text-style="assistant-message"]'))) this.#syncResponseRoots();
-      if (relevant.some((record) => !(record.target instanceof Element)
+      const summaryToggleChanged = relevant.some((record) => record.type === "attributes"
+        && record.target instanceof Element
+        && record.target.matches('button[data-thread-summary-panel-toggle="true"]'));
+      if (summaryToggleChanged || relevant.some((record) => !(record.target instanceof Element)
         || !record.target.closest('[data-app-shell-focus-area="main"][id$="-chat-panel"]')
         || record.attributeName === "role"
         || Boolean(record.target.closest('[role="dialog"]'))
@@ -257,17 +260,27 @@ export class CodexAdapter {
         .find((element) => element.getBoundingClientRect().height > 0 && !element.closest('[aria-hidden="true"], [inert]'));
     if (!toolbarSlot && layout && this.#controller.hasOpenPopovers) {
       this.#document.querySelectorAll("[data-codex-ui-shift-chat]").forEach((element) => element.removeAttribute("data-codex-ui-shift-chat"));
-      const chatLayout = activePage?.querySelector<HTMLElement>('[class~="group/thread-scroll-layout"]');
+      const chatLayout = activePage?.querySelector<HTMLElement>('[class~="group/thread-scroll-layout"]') ?? null;
+      const summary = activePage?.querySelector<HTMLElement>('[data-summary-panel-variant="summary"]') ?? null;
+      const popoverHost = this.#findPopoverHost(layout.main, chatLayout, summary);
       if (chatLayout) chatLayout.dataset.codexUiShiftChat = "";
-      if (this.#controller.popoverStack.parentElement !== this.#document.body) this.#document.body.append(this.#controller.popoverStack);
-      const mainRect = layout.main.getBoundingClientRect();
+      if (this.#controller.popoverStack.parentElement !== popoverHost) popoverHost.append(this.#controller.popoverStack);
+      const chatRect = chatLayout?.getBoundingClientRect() ?? layout.main.getBoundingClientRect();
       const stack = this.#controller.popoverStack;
-      stack.style.top = `${mainRect.top + 8 - POPOVER_SHADOW_SPACE}px`;
-      stack.style.width = `${Math.max(0, Math.min(300, mainRect.width - 16))}px`;
-      stack.style.left = `${mainRect.right - 8 - 300 - POPOVER_SHADOW_SPACE}px`;
+      const stackWidth = Math.max(0, Math.min(300, chatRect.width - 16));
+      stack.style.top = `${chatRect.top + 8 - POPOVER_SHADOW_SPACE}px`;
+      stack.style.width = `${stackWidth}px`;
+      stack.style.setProperty("--codex-ui-popover-width", `${stackWidth}px`);
+      stack.style.left = `${chatRect.right - 8 - stackWidth - POPOVER_SHADOW_SPACE}px`;
       stack.style.right = "auto";
-      stack.style.bottom = `${Math.max(16, (this.#document.defaultView?.innerHeight ?? mainRect.bottom) - mainRect.bottom + 16) - POPOVER_SHADOW_SPACE}px`;
-      this.#observeTargets([layout.element, layout.main, ...(chatLayout ? [chatLayout] : [])]);
+      stack.style.bottom = `${Math.max(16, (this.#document.defaultView?.innerHeight ?? chatRect.bottom) - chatRect.bottom + 16) - POPOVER_SHADOW_SPACE}px`;
+      this.#observeTargets([
+        layout.element,
+        layout.main,
+        ...(popoverHost !== layout.main ? [popoverHost] : []),
+        ...(chatLayout ? [chatLayout] : []),
+        ...(summary ? [summary] : []),
+      ]);
       this.#updateDrawerGeometry();
       return;
     }
@@ -310,7 +323,7 @@ export class CodexAdapter {
         && Boolean(this.#controller.drawer.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING))) {
       layout.element.append(this.#controller.drawer);
     }
-    const chatLayout = activePage?.querySelector<HTMLElement>('[class~="group/thread-scroll-layout"]');
+    const chatLayout = activePage?.querySelector<HTMLElement>('[class~="group/thread-scroll-layout"]') ?? null;
     this.#document.querySelectorAll("[data-codex-ui-shift-chat]").forEach((element) => {
       if (element !== chatLayout || !this.#controller.hasOpenPopovers || summaryButton?.getAttribute("aria-pressed") === "true") {
         element.removeAttribute("data-codex-ui-shift-chat");
@@ -319,26 +332,51 @@ export class CodexAdapter {
     if (chatLayout && this.#controller.hasOpenPopovers && summaryButton?.getAttribute("aria-pressed") !== "true") {
       chatLayout.dataset.codexUiShiftChat = "";
     }
-    if (this.#controller.popoverStack.parentElement !== this.#document.body) this.#document.body.append(this.#controller.popoverStack);
-    const mainRect = layout.main.getBoundingClientRect();
+    const summary = activePage?.querySelector<HTMLElement>('[data-summary-panel-variant="summary"]') ?? null;
+    const popoverHost = this.#findPopoverHost(layout.main, chatLayout, summary);
+    if (this.#controller.popoverStack.parentElement !== popoverHost) popoverHost.append(this.#controller.popoverStack);
+    const chatRect = chatLayout?.getBoundingClientRect() ?? layout.main.getBoundingClientRect();
     const stack = this.#controller.popoverStack;
-    const summary = activePage?.querySelector<HTMLElement>('[data-summary-panel-variant="summary"]');
     const summaryRect = summary?.getBoundingClientRect();
     const visibleSummary = summaryButton?.getAttribute("aria-pressed") === "true"
       && summaryRect && summaryRect.width > 0 && summaryRect.height > 0
-      && summaryRect.left < mainRect.right && summaryRect.right > mainRect.left ? summaryRect : null;
-    stack.style.top = `${(visibleSummary ? visibleSummary.bottom + 8 : mainRect.top + 8) - POPOVER_SHADOW_SPACE}px`;
-    stack.style.width = `${Math.max(0, Math.min(visibleSummary?.width ?? 300, mainRect.width - 16))}px`;
+      && summaryRect.left < chatRect.right && summaryRect.right > chatRect.left ? summaryRect : null;
+    const stackWidth = Math.max(0, Math.min(visibleSummary?.width ?? 300, chatRect.width - 16));
+    stack.style.top = `${(visibleSummary ? visibleSummary.bottom + 8 : chatRect.top + 8) - POPOVER_SHADOW_SPACE}px`;
+    stack.style.width = `${stackWidth}px`;
+    stack.style.setProperty("--codex-ui-popover-width", `${stackWidth}px`);
     if (this.#controller.hasOpenPopovers) {
-      stack.style.left = `${mainRect.right - 8 - (visibleSummary?.width ?? 300) - POPOVER_SHADOW_SPACE}px`;
+      stack.style.left = `${chatRect.right - 8 - stackWidth - POPOVER_SHADOW_SPACE}px`;
       stack.style.right = "auto";
     } else {
       stack.style.left = "";
-      stack.style.right = `${(this.#document.defaultView?.innerWidth ?? mainRect.right) - Math.min(visibleSummary?.right ?? mainRect.right - 8, mainRect.right - 8) - POPOVER_SHADOW_SPACE}px`;
+      stack.style.right = `${(this.#document.defaultView?.innerWidth ?? chatRect.right) - Math.min(visibleSummary?.right ?? chatRect.right - 8, chatRect.right - 8) - POPOVER_SHADOW_SPACE}px`;
     }
-    stack.style.bottom = `${Math.max(16, (this.#document.defaultView?.innerHeight ?? mainRect.bottom) - mainRect.bottom + 16) - POPOVER_SHADOW_SPACE}px`;
-    this.#observeTargets([toolbarSlot, layout.element, layout.main, ...(visibleSummary && summary ? [summary] : [])]);
+    stack.style.bottom = `${Math.max(16, (this.#document.defaultView?.innerHeight ?? chatRect.bottom) - chatRect.bottom + 16) - POPOVER_SHADOW_SPACE}px`;
+    this.#observeTargets([
+      toolbarSlot,
+      layout.element,
+      layout.main,
+      ...(popoverHost !== layout.main ? [popoverHost] : []),
+      ...(chatLayout ? [chatLayout] : []),
+      ...(summary ? [summary] : []),
+    ]);
     this.#updateDrawerGeometry();
+  }
+
+  #findPopoverHost(main: HTMLElement, chatLayout: HTMLElement | null, summary: HTMLElement | null): HTMLElement {
+    if (!chatLayout || !summary) return chatLayout ?? main;
+
+    const chatAncestors = new Set<HTMLElement>();
+    for (let ancestor: HTMLElement | null = chatLayout; ancestor; ancestor = ancestor.parentElement) {
+      chatAncestors.add(ancestor);
+      if (ancestor === main) break;
+    }
+    for (let ancestor: HTMLElement | null = summary; ancestor; ancestor = ancestor.parentElement) {
+      if (chatAncestors.has(ancestor)) return ancestor;
+      if (ancestor === main) break;
+    }
+    return chatLayout;
   }
 
   #observeTargets(targets: readonly Element[]): void {
