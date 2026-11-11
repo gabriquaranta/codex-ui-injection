@@ -53,7 +53,7 @@ const appleMusicPopover: UiPopover = {
   createIcon,
   styles: `
     :host { display: block; box-sizing: border-box; width: min(300px, var(--codex-ui-popover-width, 300px)); height: min(300px, var(--codex-ui-popover-width, 300px)); overflow: hidden; border: 0 !important; border-radius: 12px !important; background: transparent !important; }
-    .music-card { box-sizing: border-box; position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 12px; background: #202020; isolation: isolate; }
+    .music-card { box-sizing: border-box; position: relative; width: 100%; height: 100%; background: #202020; isolation: isolate; }
     .music-card::after { content: ""; position: absolute; z-index: 1; inset: 30% 0 0; opacity: 0; pointer-events: none; background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, .18) 28%, rgba(0, 0, 0, .78) 100%); transition: opacity 140ms ease; }
     .music-card:hover::after, .music-card:focus-within::after { opacity: 1; }
     .artwork { position: absolute; z-index: 0; inset: 0; overflow: hidden; background: #202020; }

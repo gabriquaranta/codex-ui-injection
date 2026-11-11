@@ -307,3 +307,7 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 - The bridge used one CDP connection and did not retry after setup errors or disconnects. It now retains the per-user lock and reconnects every two seconds. Each connection installs a fresh binding in the trusted main frame and removes its listeners when the socket closes. The renderer's existing 1.5 second state poll can then recover without a reload. A timed-out WebSocket connection is closed before retry.
 - If the CDP socket closes while a Music request is pending, sending its response can fail. Response dispatch now fails closed without attempting a second send on the same socket; a request failure still gets one error-response attempt. A regression test simulates a disconnect during an active request.
 - Verification: TypeScript type-check, bundle build, and the bridge-disconnect test passed. A short live run connected to the main renderer and received binding calls. Playback controls and Automation permission behavior were not exercised.
+
+### Music artwork corners: 2026-11-11
+
+- Version 0.1.101 removes the card's second 12 px clipping layer. The popover host now clips the artwork and card together to its 12 px radius. Double clipping was a possible cause of the light corner; this cause remains unverified. Type-check, the Music module test, and build passed. Live visual verification was unavailable because CDP was not listening.
