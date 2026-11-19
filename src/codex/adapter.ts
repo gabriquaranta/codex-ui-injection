@@ -72,6 +72,8 @@ export class CodexAdapter {
       }
       :root[data-codex-ui-home-chat]:is([data-codex-ui-background], [data-codex-ui-workspace-background]) [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_fade_"],
       :root[data-codex-ui-home-chat]:is([data-codex-ui-background], [data-codex-ui-workspace-background]) [data-app-shell-active-page="true"] :is([data-app-shell-focus-area="main"][id$="-chat-panel"], [data-app-shell-tab-panel-controller="right"] [data-includes-composer="true"]) [aria-hidden="true"][class*="_background_"][class*="_surface_"] { background: transparent !important; }
+      :root[data-codex-ui-home-chat]:is([data-codex-ui-background], [data-codex-ui-workspace-background]) main [data-includes-composer="true"] [data-app-action-timeline-scroll] > [class*="footer-"][class*="shiftWithTranscript-"]::before,
+      :root[data-codex-ui-home-chat]:is([data-codex-ui-background], [data-codex-ui-workspace-background]) main [data-includes-composer="true"] [data-app-action-timeline-scroll] > [class*="footer-"][class*="shiftWithTranscript-"]::after { background: transparent !important; }
     `;
     this.#controller = new ModuleController(document, registry, () => {
       this.#updateDrawerGeometry();

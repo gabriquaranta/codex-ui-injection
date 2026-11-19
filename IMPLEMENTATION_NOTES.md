@@ -311,3 +311,9 @@ Do not record session-specific target IDs as stable facts. Label unverified idea
 ### Music artwork corners: 2026-11-11
 
 - Version 0.1.101 removes the card's second 12 px clipping layer. The popover host now clips the artwork and card together to its 12 px radius. Double clipping was a possible cause of the light corner; this cause remains unverified. Type-check, the Music module test, and build passed. Live visual verification was unavailable because CDP was not listening.
+
+### Conversation footer fade: 2026-11-19
+
+- Live renderer inspection found a white gradient on the `::before` pseudo-element of the conversation scroll footer (`footer-` and `shiftWithTranscript-` classes). The older composer fade selectors do not match it. The adapter removes this gradient when a custom background is active on Home. The active chat no longer has the older active-page marker, so the rule is scoped to `main`. After injection, the footer pseudo-element computed background was transparent; visual verification remains pending.
+
+- A second live inspection found a solid white, 16 px high `::after` layer on the same footer. The background rule also clears this layer. The user confirmed the strip is gone; type-check, adapter tests, and build passed.

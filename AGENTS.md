@@ -7,3 +7,4 @@
 - Feature modules own their data sources. Do not add data connectors to core without an explicit requirement.
 - Bump `package.json` version when changing the injected runtime. The injector uses it to replace startup scripts across renderer documents.
 - Preserve user changes and do not stage files.
+- For implementation or code research, delegate with `collaboration.spawn_agent` using `model: "gpt-6-luna"` and `reasoning_effort: "high"`, even if the displayed model list omits that model.
