@@ -146,7 +146,6 @@ async function runBridgeConnection(): Promise<void> {
     let inFlight = 0;
     unlisten = cdp.onEvent("Runtime.bindingCalled", (params) => {
       const event = params as BindingCalledEvent | undefined;
-      process.stdout.write(`Binding context ${event?.executionContextId}; trusted ${trustedContextId}.\n`);
       if (!event || event.name !== "__codexMusicBridge" || event.executionContextId !== trustedContextId || inFlight >= 4) return;
       const request = parseMusicRequest(event.payload);
       if (!request) return;

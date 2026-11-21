@@ -1,4 +1,6 @@
+import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { CdpClient } from "../cdp/client.js";
 import { CDP_ENDPOINT, discoverTargets, findMainTarget } from "../cdp/discovery.js";
 import { isMainCodexTarget, type CodexTarget } from "../codex/target.js";
@@ -114,6 +116,12 @@ async function main(): Promise<void> {
       returnByValue: true,
     });
     console.log(`Injected ${verification.result.value.version} into ${target.url}: ${JSON.stringify(verification.result.value)}`);
+    if (process.platform === "darwin") {
+      spawn(process.execPath, [fileURLToPath(new URL("./music-bridge.mjs", import.meta.url))], {
+        detached: true,
+        stdio: "ignore",
+      }).unref();
+    }
   } finally {
     cdp.close();
   }

@@ -278,9 +278,11 @@ export class CodexAdapter {
       if (chatLayout) chatLayout.dataset.codexUiShiftChat = "";
       if (this.#controller.popoverStack.parentElement !== popoverHost) popoverHost.append(this.#controller.popoverStack);
       const chatRect = chatLayout?.getBoundingClientRect() ?? layout.main.getBoundingClientRect();
+      const toolbar = activePage?.querySelector<HTMLElement>('[data-app-shell-header-toolbar="true"]') ?? null;
+      const toolbarBottom = toolbar?.getBoundingClientRect().bottom ?? chatRect.top;
       const stack = this.#controller.popoverStack;
       const stackWidth = Math.max(0, Math.min(300, chatRect.width - 16));
-      stack.style.top = `${chatRect.top + 8 - POPOVER_SHADOW_SPACE}px`;
+      stack.style.top = `${Math.max(chatRect.top, toolbarBottom) + 8 - POPOVER_SHADOW_SPACE}px`;
       stack.style.width = `${stackWidth}px`;
       stack.style.setProperty("--codex-ui-popover-width", `${stackWidth}px`);
       stack.style.left = `${chatRect.right - 8 - stackWidth - POPOVER_SHADOW_SPACE}px`;
@@ -289,6 +291,7 @@ export class CodexAdapter {
       this.#observeTargets([
         layout.element,
         layout.main,
+        ...(toolbar ? [toolbar] : []),
         ...(popoverHost !== layout.main ? [popoverHost] : []),
         ...(chatLayout ? [chatLayout] : []),
         ...(summary ? [summary] : []),
@@ -348,13 +351,15 @@ export class CodexAdapter {
     const popoverHost = this.#findPopoverHost(layout.main, chatLayout, summary);
     if (this.#controller.popoverStack.parentElement !== popoverHost) popoverHost.append(this.#controller.popoverStack);
     const chatRect = chatLayout?.getBoundingClientRect() ?? layout.main.getBoundingClientRect();
+    const toolbar = activePage?.querySelector<HTMLElement>('[data-app-shell-header-toolbar="true"]') ?? null;
+    const toolbarBottom = toolbar?.getBoundingClientRect().bottom ?? chatRect.top;
     const stack = this.#controller.popoverStack;
     const summaryRect = summary?.getBoundingClientRect();
     const visibleSummary = summaryButton?.getAttribute("aria-pressed") === "true"
       && summaryRect && summaryRect.width > 0 && summaryRect.height > 0
       && summaryRect.left < chatRect.right && summaryRect.right > chatRect.left ? summaryRect : null;
     const stackWidth = Math.max(0, Math.min(visibleSummary?.width ?? 300, chatRect.width - 16));
-    stack.style.top = `${(visibleSummary ? visibleSummary.bottom + 8 : chatRect.top + 8) - POPOVER_SHADOW_SPACE}px`;
+    stack.style.top = `${(visibleSummary ? visibleSummary.bottom + 8 : Math.max(chatRect.top, toolbarBottom) + 8) - POPOVER_SHADOW_SPACE}px`;
     stack.style.width = `${stackWidth}px`;
     stack.style.setProperty("--codex-ui-popover-width", `${stackWidth}px`);
     if (this.#controller.hasOpenPopovers) {
@@ -369,6 +374,7 @@ export class CodexAdapter {
       toolbarSlot,
       layout.element,
       layout.main,
+      ...(toolbar ? [toolbar] : []),
       ...(popoverHost !== layout.main ? [popoverHost] : []),
       ...(chatLayout ? [chatLayout] : []),
       ...(summary ? [summary] : []),

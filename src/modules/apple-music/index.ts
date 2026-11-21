@@ -137,6 +137,8 @@ const appleMusicPopover: UiPopover = {
     if (!view) throw new Error("Apple Music popover requires a browser window.");
     let currentState: MusicState | null = null;
     let artworkRequestTrackId: string | null = null;
+    let artworkRetryCount = 0;
+    let artworkRetryTimer: number | undefined;
     let stateRequestActive = false;
     let commandActive = false;
     let disposed = false;
@@ -184,24 +186,44 @@ const appleMusicPopover: UiPopover = {
       toggle.replaceChildren(createControlIcon(document, playing ? "pause" : "play"));
     };
 
+    const scheduleArtworkRetry = (trackId: string): void => {
+      if (disposed || trackId !== artworkRequestTrackId || artworkRetryCount >= 3 || artworkRetryTimer !== undefined) return;
+      artworkRetryTimer = view.setTimeout(() => {
+        artworkRetryTimer = undefined;
+        requestArtwork(trackId);
+      }, 2_000);
+    };
+
+    const requestArtwork = (trackId: string): void => {
+      if (disposed || trackId !== artworkRequestTrackId || artworkRetryCount >= 3) return;
+      artworkRetryCount += 1;
+      void sendRequest("artwork", trackId).then((response) => {
+        if (disposed || trackId !== artworkRequestTrackId) return;
+        if (!response.ok || response.trackId !== trackId || !response.artworkDataUrl) {
+          scheduleArtworkRetry(trackId);
+          return;
+        }
+        const nextImage = new view.Image();
+        nextImage.onload = () => {
+          if (disposed || trackId !== artworkRequestTrackId) return;
+          image.replaceWith(nextImage);
+          image = nextImage;
+          artwork.classList.add("has-image");
+        };
+        nextImage.onerror = () => scheduleArtworkRetry(trackId);
+        nextImage.src = response.artworkDataUrl;
+      }).catch(() => scheduleArtworkRetry(trackId));
+    };
+
     const setState = (state: MusicState): void => {
       currentState = state;
       const nextTrackId = state.track?.id ?? null;
       if (nextTrackId !== artworkRequestTrackId) {
         artworkRequestTrackId = nextTrackId;
-        if (nextTrackId) {
-          void sendRequest("artwork", nextTrackId).then((response) => {
-            if (disposed || response.trackId !== artworkRequestTrackId || !response.artworkDataUrl) return;
-            const nextImage = new view.Image();
-            nextImage.onload = () => {
-              if (disposed || response.trackId !== artworkRequestTrackId) return;
-              image.replaceWith(nextImage);
-              image = nextImage;
-              artwork.classList.add("has-image");
-            };
-            nextImage.src = response.artworkDataUrl;
-          }).catch(() => undefined);
-        }
+        artworkRetryCount = 0;
+        if (artworkRetryTimer !== undefined) view.clearTimeout(artworkRetryTimer);
+        artworkRetryTimer = undefined;
+        if (nextTrackId) requestArtwork(nextTrackId);
       }
       title.textContent = state.track?.title || "Apple Music";
       artist.textContent = state.track?.artist || "Play something in Music";
@@ -252,6 +274,7 @@ const appleMusicPopover: UiPopover = {
     return () => {
       disposed = true;
       view.clearInterval(interval);
+      if (artworkRetryTimer !== undefined) view.clearTimeout(artworkRetryTimer);
       view.removeEventListener("codex-music-response", onResponse);
       toggle.removeEventListener("click", onToggle);
       previous.removeEventListener("click", onPrevious);

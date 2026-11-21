@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { UiPopover } from "../../src/core/contracts.js";
 import { appleMusicModule } from "../../src/modules/apple-music/index.js";
 import type { MusicRequest, MusicResponse, MusicState } from "../../src/music/protocol.js";
@@ -9,6 +9,7 @@ describe("Apple Music artwork", () => {
     const previousImageDescriptor = Object.getOwnPropertyDescriptor(view, "Image");
     const previousBridge = view.__codexMusicBridge;
     const requests: MusicRequest[] = [];
+    let failedTrackFourRequest = false;
     let loadedImageCount = 0;
     Object.defineProperty(view, "Image", {
       configurable: true,
@@ -30,7 +31,10 @@ describe("Apple Music artwork", () => {
     });
     view.__codexMusicBridge = (payload) => {
       const request = JSON.parse(payload) as MusicRequest;
-      if (request.action === "artwork" && request.trackId === "4") throw new Error("Artwork request failed.");
+      if (request.action === "artwork" && request.trackId === "4" && !failedTrackFourRequest) {
+        failedTrackFourRequest = true;
+        throw new Error("Artwork request failed.");
+      }
       requests.push(request);
     };
 
@@ -44,10 +48,11 @@ describe("Apple Music artwork", () => {
       setWorkspaceBackground: () => {},
     });
     const root = document.createElement("div").attachShadow({ mode: "open" });
+    vi.useFakeTimers();
     const cleanup = popover!.mount(root);
     const artwork = root.querySelector<HTMLElement>(".artwork")!;
 
-    const settle = async (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+    const settle = async (): Promise<void> => { await Promise.resolve(); await Promise.resolve(); };
     const respond = (request: MusicRequest, response: Omit<MusicResponse, "requestId">): void => {
       view.dispatchEvent(new view.CustomEvent("codex-music-response", {
         detail: { requestId: request.requestId, ...response },
@@ -96,8 +101,17 @@ describe("Apple Music artwork", () => {
       await advanceTo("4");
       expect(artwork.classList.contains("has-image")).toBe(true);
       expect(loadedImageCount).toBe(2);
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await settle();
+      expect(requests.filter((request) => request.action === "artwork" && request.trackId === "4")).toHaveLength(1);
+      respond(latest("artwork", "4"), { ok: true, trackId: "4", artworkDataUrl: "data:image/png;base64,RA==" });
+      await settle();
+      expect(artwork.classList.contains("has-image")).toBe(true);
+      expect(loadedImageCount).toBe(3);
     } finally {
       cleanup?.();
+      vi.useRealTimers();
       view.__codexMusicBridge = previousBridge;
       if (previousImageDescriptor) Object.defineProperty(view, "Image", previousImageDescriptor);
       else Reflect.deleteProperty(view, "Image");

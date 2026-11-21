@@ -31,7 +31,7 @@ npm run targets
 npm run inject -- --target <target-id>
 ```
 
-If there is exactly one main `app://` renderer, injection can select it automatically with `npm run inject`. For a manually launched app, run `npm run inject` and then `npm run music-bridge`; the bridge stays connected until the app closes. Restarting the app clears runtime injections and ends the bridge. Keep CDP bound to localhost; it grants control of the renderer.
+If there is exactly one main `app://` renderer, injection can select it automatically with `npm run inject`. On macOS, this also starts the Apple Music bridge. For direct bridge control, `npm run music-bridge` starts the helper in the foreground. Restarting the app clears runtime injections and ends the bridge. Keep CDP bound to localhost; it grants control of the renderer.
 
 ## Add a module
 

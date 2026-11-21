@@ -242,6 +242,38 @@ describe("CodexAdapter", () => {
     adapter.dispose();
   });
 
+  it("places an open popover below the current header toolbar", async () => {
+    document.documentElement.innerHTML = updatedFixture.match(/<html[^>]*>([\s\S]*)<\/html>/i)?.[1] || "";
+    const header = document.querySelector<HTMLElement>("[data-app-shell-header-toolbar]")!;
+    const main = document.querySelector<HTMLElement>("main")!;
+    const actionGroup = document.querySelector<HTMLElement>("[data-app-shell-header-toolbar] > .toolbar-actions")!;
+    const anchor = document.querySelector<HTMLButtonElement>('[aria-label="Chat actions"]')!;
+    header.getBoundingClientRect = () => rect(220, 0, 1380, 46);
+    main.getBoundingClientRect = () => rect(220, 0, 1380, 1000);
+    actionGroup.getBoundingClientRect = () => rect(1400, 7, 168, 32);
+    anchor.getBoundingClientRect = () => rect(1400, 9, 28, 28);
+    const chat = document.createElement("div");
+    chat.className = "group/thread-scroll-layout";
+    chat.getBoundingClientRect = () => rect(220, 0, 1380, 1000);
+    document.querySelector('[data-app-shell-active-page="true"]')!.append(chat);
+
+    const popover: UiPopover = {
+      id: "music",
+      toolbarLabel: "Music",
+      createIcon: (doc) => doc.createElementNS("http://www.w3.org/2000/svg", "svg"),
+      mount: () => {},
+    };
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]), [popover]);
+    adapter.start();
+    document.querySelector<HTMLButtonElement>('[data-codex-ui-action="music"]')!.click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const stack = document.querySelector<HTMLElement>("[data-codex-ui-popovers]")!;
+    expect(stack.style.top).toBe("22px");
+    expect(Number.parseFloat(stack.style.top) + 32).toBe(54);
+    adapter.dispose();
+  });
+
   it("keeps the shared transcript shift until all popovers close", async () => {
     const popovers: UiPopover[] = [];
     emptyPopoverModule.activate({
