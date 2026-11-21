@@ -7,6 +7,7 @@ import { emptyPopoverModule } from "../../src/modules/empty-popover/index.js";
 import type { UiPopover } from "../../src/core/contracts.js";
 
 const fixture = readFileSync("tests/fixtures/codex.html", "utf8");
+const updatedFixture = readFileSync("tests/fixtures/codex-updated.html", "utf8");
 
 function rect(x: number, y: number, width: number, height: number): DOMRect {
   return { x, y, width, height, top: y, right: x + width, bottom: y + height, left: x, toJSON: () => ({}) } as DOMRect;
@@ -42,6 +43,62 @@ describe("CodexAdapter", () => {
     action.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(drawer.getAttribute("data-open")).toBe("true");
     expect((drawer as HTMLElement).style.marginTop).toBe("44px");
+    adapter.dispose();
+  });
+
+  it("mounts in the current header toolbar action group when the end slot content is absent", () => {
+    document.documentElement.innerHTML = updatedFixture.match(/<html[^>]*>([\s\S]*)<\/html>/i)?.[1] || "";
+    const workspace = document.querySelector<HTMLElement>("[data-app-shell-workspace-row]")!;
+    const main = document.querySelector<HTMLElement>("main")!;
+    const actionGroup = document.querySelector<HTMLElement>("[data-app-shell-header-toolbar] > .toolbar-actions")!;
+    workspace.getBoundingClientRect = () => rect(0, 0, 1600, 1000);
+    main.getBoundingClientRect = () => rect(220, 44, 1380, 956);
+    actionGroup.getBoundingClientRect = () => rect(1400, 7, 168, 32);
+    document.querySelector<HTMLButtonElement>('[aria-label="Chat actions"]')!.getBoundingClientRect = () => rect(1400, 9, 28, 28);
+
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
+    adapter.start();
+
+    const toolbarRoot = document.querySelector<HTMLElement>("[data-codex-ui-toolbar]")!;
+    const drawer = document.querySelector<HTMLElement>("[data-codex-ui-drawer]")!;
+    expect(document.querySelector('[data-app-shell-header-slot="end"] [data-app-shell-header-slot-content="true"]')).toBeNull();
+    expect(toolbarRoot.parentElement).toBe(actionGroup);
+    expect(drawer.parentElement).toBe(workspace);
+    document.querySelector<HTMLButtonElement>('[data-codex-ui-action="empty-panel"]')!.click();
+    expect(drawer.dataset.open).toBe("true");
+    adapter.dispose();
+  });
+
+  it("clears the updated app-shell surface gradient over the workspace background", () => {
+    const surface = document.createElement("div");
+    surface.dataset.appShellPageSurface = "true";
+    surface.style.backgroundImage = "linear-gradient(white, white)";
+    document.body.append(surface);
+    const backing = document.createElement("div");
+    backing.dataset.appShellSurfaceBacking = "true";
+    backing.style.backgroundColor = "white";
+    surface.append(backing);
+    const windowBackdrop = document.createElement("div");
+    windowBackdrop.className = "macos-window-backdrop";
+    windowBackdrop.style.backgroundColor = "rgb(241, 244, 244)";
+    document.body.append(windowBackdrop);
+    const tabShell = document.createElement("div");
+    tabShell.dataset.appShellTabs = "true";
+    const rightPanelBacking = document.createElement("div");
+    rightPanelBacking.style.backgroundColor = "white";
+    const rightPanel = document.createElement("div");
+    rightPanel.dataset.appShellTabPanelController = "right";
+    rightPanelBacking.append(rightPanel);
+    tabShell.append(rightPanelBacking);
+    document.body.append(tabShell);
+    const adapter = new CodexAdapter(document, new ModuleRegistry([emptyPanel]));
+    adapter.start();
+    adapter.setWorkspaceBackground(new Blob(["image"]), 30);
+
+    expect(getComputedStyle(surface).backgroundImage).toBe("none");
+    expect(getComputedStyle(backing).backgroundColor).toBe("transparent");
+    expect(getComputedStyle(windowBackdrop).backgroundColor).toBe("transparent");
+    expect(getComputedStyle(rightPanelBacking).backgroundColor).toBe("transparent");
     adapter.dispose();
   });
 

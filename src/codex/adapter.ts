@@ -41,7 +41,17 @@ export class CodexAdapter {
       :root[data-codex-ui-workspace-background] [data-app-shell-page-surface="true"],
       :root[data-codex-ui-workspace-background] [data-app-shell-main-surface="default"],
       :root[data-codex-ui-workspace-background] [data-app-shell-tabs] [data-app-shell-compact-page-gutter]:has([data-app-shell-tab-panel-controller="right"]),
-      :root[data-codex-ui-workspace-background] [data-app-shell-tab-panel-controller="right"] {
+      :root[data-codex-ui-workspace-background] [data-app-shell-tab-panel-controller="right"],
+      :root[data-codex-ui-workspace-background] [data-app-shell-surface-backing="true"] {
+        background-color: transparent !important;
+      }
+      :root[data-codex-ui-workspace-background] .macos-window-backdrop {
+        background-color: transparent !important;
+      }
+      :root[data-codex-ui-workspace-background] [data-app-shell-page-surface="true"] {
+        background-image: none !important;
+      }
+      :root[data-codex-ui-workspace-background] [data-app-shell-tabs="true"] > :has([data-app-shell-tab-panel-controller="right"]) {
         background-color: transparent !important;
       }
       :root[data-codex-ui-workspace-background] [data-app-shell-tab-panel-controller="right"] [data-app-shell-pane-content-viewport] .bg-surface-canvas {
@@ -391,9 +401,15 @@ export class CodexAdapter {
 
   #findToolbarSlot(anchor: HTMLButtonElement): HTMLElement | null {
     const page = anchor.closest('[data-app-shell-active-page="true"]');
-    return [...page?.querySelectorAll<HTMLElement>('[data-app-shell-header-slot="end"] [data-app-shell-header-slot-content="true"]') ?? []]
+    const endSlot = [...page?.querySelectorAll<HTMLElement>('[data-app-shell-header-slot="end"] [data-app-shell-header-slot-content="true"]') ?? []]
       .find((element) => element.getBoundingClientRect().height > 0
         && !element.closest('[aria-hidden="true"], [inert]')) ?? null;
+    if (endSlot) return endSlot;
+
+    const toolbar = anchor.closest<HTMLElement>('[data-app-shell-header-toolbar="true"]');
+    return [...toolbar?.children ?? []].find((element): element is HTMLElement => element instanceof HTMLElement
+      && element.contains(anchor)
+      && this.#document.defaultView?.getComputedStyle(element).display === "flex") ?? null;
   }
 
   #findLayout(): { element: HTMLElement; main: HTMLElement } | null {
